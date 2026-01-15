@@ -55,6 +55,7 @@ public class TerrainFaces
     {
         Vector3[] vertices = new Vector3[resolution * resolution];
         Color[] colors = new Color[resolution * resolution];
+        
         int[] triangles = new int[(resolution - 1) * (resolution - 1) * 6];
         int triIndex = 0;
  
@@ -78,9 +79,11 @@ public class TerrainFaces
                     float v = (coord.latitude  / Mathf.PI) + 0.5f;
 
                     float sampleO = OceanheightMap.GetPixelBilinear(u, v).r; // assume grayscale
+                    
                     float radiusO = 1f + sampleO * OceanheightMultiplier;
 
                     float sample = heightMap.GetPixelBilinear(u,v).r;
+                    
                     float radius = 1f + sample * heightMultiplier;
 
                     vertices[i] = pointOnUnitSphere * (radiusO + radius);
