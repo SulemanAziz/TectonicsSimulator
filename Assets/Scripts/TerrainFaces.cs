@@ -11,9 +11,13 @@ public class TerrainFaces
     Vector3 axisB;
     Texture2D OceanheightMap;
     Texture2D heightMap;
+    Texture2D PlateMap;
 
     float OceanheightMultiplier;
     float heightMultiplier;
+
+    float PlateMultiplier;
+
 
     float WATERLEVEL;
     float MountainLevel;
@@ -32,7 +36,7 @@ public class TerrainFaces
         return new Vector3(x,y,z);
     }
     
-    public TerrainFaces(Mesh m, int res, Vector3 up, Texture2D Oceanheightmap, Texture2D heightMap = null, float OceanheightMultiplier = 0f, float heightMultiplier = 0f, float WATERLEVEL = 1f, float MountainLevel = 2.25f)
+    public TerrainFaces(Mesh m, int res, Vector3 up, Texture2D Oceanheightmap, Texture2D heightMap = null, Texture2D PlateMap= null ,float OceanheightMultiplier = 0f, float heightMultiplier = 0f, float PlateMultiplier = 0f,float WATERLEVEL = 1f, float MountainLevel = 2.25f)
     {
         mesh = m;
         resolution = res;
@@ -43,9 +47,11 @@ public class TerrainFaces
 
         this.OceanheightMap = Oceanheightmap;
         this.heightMap = heightMap;
+        this.PlateMap =  PlateMap;
 
         this.OceanheightMultiplier = OceanheightMultiplier;
         this.heightMultiplier = heightMultiplier;
+        this.PlateMultiplier = PlateMultiplier;
         this.WATERLEVEL = WATERLEVEL;
         this.MountainLevel = MountainLevel;
     }
@@ -71,7 +77,7 @@ public class TerrainFaces
  
                 // Sample Bathymetry heightmap and Topography heightmap then displace radially
                 
-                if (OceanheightMap != null || heightMap != null)
+                if (OceanheightMap != null || heightMap != null || PlateMap != null)
                 {
                     var coord = GeoMaths.PointToCoordinate(pointOnUnitSphere);
 
@@ -86,7 +92,12 @@ public class TerrainFaces
                     
                     float radius = 1f + sample * heightMultiplier;
 
-                    vertices[i] = pointOnUnitSphere * (radiusO + radius);
+                    float sampleP = PlateMap.GetPixelBilinear(u,v).r;
+
+                    float radiusP = 1f + sampleP * PlateMultiplier;
+
+
+                    vertices[i] = pointOnUnitSphere * (radiusO + radius + radiusP);
 
                     
                     if(radiusO + radius > WATERLEVEL)
