@@ -66,5 +66,5 @@
     "explorer.fileNesting.patterns": {
         "*.sln": "*.csproj"
     },
-    "dotnet.defaultSolution": "TectonicsSimulator.sln"
+    "dotnet.defaultSolution": "TectonicsSimulator.slnx"
 }

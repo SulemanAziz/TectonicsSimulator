@@ -15,11 +15,15 @@ public class Planet : MonoBehaviour
     // Heightmap placed in Assets/Resources/TopoHeight.png (name without extension)
     public Texture2D OceanheightMap;
     public Texture2D heightMap;
+    public Texture2D PlateMap;
 
     [Range(0f, 1f)]
     public float Oceanelevation = 0.15f;
     [Range(0f, 1f)]
     public float Topographyelevation = 0.15f;
+    [Range(0f, 1f)]
+    public float Plateelevation = 0.15f;
+
 
 
     [SerializeField, HideInInspector]
@@ -44,6 +48,10 @@ public class Planet : MonoBehaviour
         {
             heightMap = Resources.Load<Texture2D>("TopoHeight");
         }
+        if(PlateMap == null)
+        {
+            PlateMap = Resources.Load<Texture2D>("TectonicPlatesFinal");
+        }
 
         if (meshFilters == null || meshFilters.Length == 0)
         {
@@ -59,13 +67,15 @@ public class Planet : MonoBehaviour
             {
                 GameObject meshObj = new GameObject("mesh");
                 meshObj.transform.parent = transform;
+
+                
  
                 meshFilters[i] = meshObj.AddComponent<MeshFilter>();
 
                 meshFilters[i].sharedMesh = new Mesh();
             }
 
-            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, heightMap, Oceanelevation, Topographyelevation, WATERLEVEL, MountainLevel);
+            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, heightMap, PlateMap, Oceanelevation, Topographyelevation, Plateelevation, WATERLEVEL, MountainLevel);
         }
     }
 
