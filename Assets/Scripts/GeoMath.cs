@@ -28,10 +28,17 @@ public static class GeoMaths
 	// Calculate point on sphere given longitude and latitude (in radians), and the radius of the sphere
 	public static Vector3 CoordinateToPoint(Coordinate coordinate, float radius = 1)
 	{
-		float y = Mathf.Sin(coordinate.latitude);
-		float r = Mathf.Cos(coordinate.latitude); // radius of 2d circle cut through sphere at 'y'
-		float x = Mathf.Sin(coordinate.longitude) * r;
-		float z = -Mathf.Cos(coordinate.longitude) * r;
+		// Convert Degrees to Radians
+		float latRad = coordinate.latitude * Mathf.Deg2Rad;
+		float lonRad = coordinate.longitude * Mathf.Deg2Rad;
+
+		float y = Mathf.Sin(latRad);
+		float r = Mathf.Cos(latRad); 
+		
+		// Note: Standard Unity forward is Z+, Right is X+
+		// Adjusting to match common mapping projections
+		float x = Mathf.Sin(lonRad) * r;
+		float z = -Mathf.Cos(lonRad) * r;
 
 		return new Vector3(x, y, z) * radius;
 	}

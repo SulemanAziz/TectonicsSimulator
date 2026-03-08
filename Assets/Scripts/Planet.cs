@@ -1,5 +1,8 @@
 using UnityEngine;
 using System.IO;
+using System.Data;
+using System.Collections.Generic;
+using UnityEngine.Analytics;
 
 public class Planet : MonoBehaviour
 {
@@ -11,26 +14,20 @@ public class Planet : MonoBehaviour
 
     [Range (2f, 5f)]
     public float MountainLevel = 2.25f;
-
-    // Heightmap placed in Assets/Resources/TopoHeight.png (name without extension)
     public Texture2D OceanheightMap;
     public Texture2D heightMap;
-    public Texture2D PlateMap;
+
+    public Dictionary<string, List<List<float>>> PlateMap;
 
     [Range(0f, 1f)]
     public float Oceanelevation = 0.15f;
     [Range(0f, 1f)]
     public float Topographyelevation = 0.15f;
-    [Range(0f, 1f)]
-    public float Plateelevation = 0.15f;
 
     [SerializeField, HideInInspector]
     MeshFilter[] meshFilters;
     TerrainFaces[] terrainFaces;
-    // Material that supports vertex colors (reuse for all faces
-    static Material vertexColorMaterial;
 
-    // --- CHANGE 1: Safety check for Editor vs Play mode ---
     void OnValidate()
     {
         // Only regenerate automatically if we are NOT playing the game
@@ -53,7 +50,10 @@ public class Planet : MonoBehaviour
         // Load Resources heightmap if not already set in inspector
         if (OceanheightMap == null) OceanheightMap = Resources.Load<Texture2D>("BathyProcessed");
         if (heightMap == null) heightMap = Resources.Load<Texture2D>("TopoHeight");
-        if (PlateMap == null) PlateMap = Resources.Load<Texture2D>("TectonicPlatesFinal");
+        if(PlateMap == null){
+            /* string path = "TectonicPlates";
+            PlateMap = Mapping.Map(path); */
+        }
 
         if (meshFilters == null || meshFilters.Length == 0)
         {
@@ -72,8 +72,6 @@ public class Planet : MonoBehaviour
 
                 meshFilters[i] = meshObj.AddComponent<MeshFilter>();
 
-                // --- CHANGE 3: Added MeshRenderer so the planet is VISIBLE ---
-                // Without this, the planet has a shape but no surface to render
                 if (meshObj.GetComponent<MeshRenderer>() == null)
                 {
                    var mr = meshObj.AddComponent<MeshRenderer>();
@@ -83,7 +81,7 @@ public class Planet : MonoBehaviour
                 meshFilters[i].sharedMesh = new Mesh();
             }
 
-            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, heightMap, PlateMap, Oceanelevation, Topographyelevation, Plateelevation, WATERLEVEL, MountainLevel);
+            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, heightMap, PlateMap, Oceanelevation, Topographyelevation, WATERLEVEL, MountainLevel);
         }
     }
 
