@@ -11,13 +11,9 @@ public class TerrainFaces
     Vector3 axisB;
     Texture2D OceanheightMap;
     Texture2D heightMap;
-    Texture2D PlateMap;
-
+    Dictionary<string, List<List<float>>> PlateMap;
     float OceanheightMultiplier;
     float heightMultiplier;
-
-    float PlateMultiplier;
-
 
     float WATERLEVEL;
     float MountainLevel;
@@ -36,7 +32,7 @@ public class TerrainFaces
         return new Vector3(x,y,z);
     }
     
-    public TerrainFaces(Mesh m, int res, Vector3 up, Texture2D Oceanheightmap, Texture2D heightMap = null, Texture2D PlateMap= null ,float OceanheightMultiplier = 0f, float heightMultiplier = 0f, float PlateMultiplier = 0f,float WATERLEVEL = 1f, float MountainLevel = 2.25f)
+    public TerrainFaces(Mesh m, int res, Vector3 up, Texture2D Oceanheightmap, Texture2D heightMap = null, Dictionary<string, List<List<float>>> PlateMap = null, float OceanheightMultiplier = 0f, float heightMultiplier = 0f, float WATERLEVEL = 1f, float MountainLevel = 2.25f)
     {
         mesh = m;
         resolution = res;
@@ -47,11 +43,10 @@ public class TerrainFaces
 
         this.OceanheightMap = Oceanheightmap;
         this.heightMap = heightMap;
-        this.PlateMap =  PlateMap;
+        this.PlateMap = PlateMap;
 
         this.OceanheightMultiplier = OceanheightMultiplier;
         this.heightMultiplier = heightMultiplier;
-        this.PlateMultiplier = PlateMultiplier;
         this.WATERLEVEL = WATERLEVEL;
         this.MountainLevel = MountainLevel;
     }
@@ -92,32 +87,30 @@ public class TerrainFaces
                     
                     float radius = 1f + sample * heightMultiplier;
 
-                    float sampleP = PlateMap.GetPixelBilinear(u,v).r;
 
-                    float radiusP = 1f + sampleP * PlateMultiplier;
-
-
-                    vertices[i] = pointOnUnitSphere * (radiusO + radius + radiusP);
-
+                    vertices[i] = pointOnUnitSphere * (radiusO + radius);
+                    Color mountaincolor = new Color32(245,245,245,1); // White Smoke
+                    Color terraincolor = new Color32(128,200,19,1); // Muted Green
+                    Color watercolor = new Color32(0,102,204,1); // Ocean Blue
                     
                     if(radiusO + radius > WATERLEVEL)
                     {
                         if (radiusO + radius > MountainLevel)
                         {
-                            colors[i] = Color.whiteSmoke;
+                            colors[i] = mountaincolor;
                         }
                         else
-                        colors[i] = Color.lightGreen;
+                        colors[i] = terraincolor;
                     }
                     else
                     {
-                        colors[i] = Color.softBlue;
+                        colors[i] = watercolor;
                     }
                 }
                 else
                 {
                     vertices[i] = pointOnUnitSphere;
-                    colors[i] = Color.softBlue;
+                    colors[i] = Color.blue;
                 }
  
                 if (x != resolution - 1 && y != resolution - 1)
