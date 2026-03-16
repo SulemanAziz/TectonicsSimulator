@@ -1,25 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using UnityEngine;
+using UnityEngine.Rendering;
 public class TerrainFaces
 {
     Mesh mesh;
     int resolution;
-    Vector3 localUp;
-    Vector3 axisA;
-    Vector3 axisB;
+    UnityEngine.Vector3 localUp;
+    UnityEngine.Vector3 axisA;
+    UnityEngine.Vector3 axisB;
     Texture2D OceanheightMap;
     Texture2D heightMap;
-    Dictionary<string, List<List<float>>> PlateMap;
+    Dictionary<string, List<float[]>> PlateMap;
     float OceanheightMultiplier;
     float heightMultiplier;
 
-    float WATERLEVEL;
+    float WaterLevel;
     float MountainLevel;
 
 
-    public static Vector3 PointOnUnitCubeToPointOnUnitSphere(Vector3 p)
+    public static UnityEngine.Vector3 PointOnUnitCubeToPointOnUnitSphere(UnityEngine.Vector3 p)
     {
         float x2 = p.x * p.x;
         float y2 = p.y * p.y;
@@ -29,17 +31,17 @@ public class TerrainFaces
         float y = (float)(p.y * Math.Sqrt(1 - (z2+x2)/2 + (z2*x2)/3 ) ) ;
         float z = (float)(p.z * Math.Sqrt(1 - (x2+y2)/2 + (x2*y2)/3 ) ) ;
 
-        return new Vector3(x,y,z);
+        return new UnityEngine.Vector3(x,y,z);
     }
     
-    public TerrainFaces(Mesh m, int res, Vector3 up, Texture2D Oceanheightmap, Texture2D heightMap = null, Dictionary<string, List<List<float>>> PlateMap = null, float OceanheightMultiplier = 0f, float heightMultiplier = 0f, float WATERLEVEL = 1f, float MountainLevel = 2.25f)
+    public TerrainFaces(Mesh m, int res, UnityEngine.Vector3 up, Texture2D Oceanheightmap, Texture2D heightMap = null, Dictionary<string, List<float[]>> PlateMap = null, float OceanheightMultiplier = 0f, float heightMultiplier = 0f, float WaterLevel = 1f, float MountainLevel = 2.25f)
     {
         mesh = m;
         resolution = res;
         localUp = up;
 
-        axisA = new Vector3(localUp.y, localUp.z, localUp.x);
-        axisB = Vector3.Cross(localUp, axisA);
+        axisA = new UnityEngine.Vector3(localUp.y, localUp.z, localUp.x);
+        axisB = UnityEngine.Vector3.Cross(localUp, axisA);
 
         this.OceanheightMap = Oceanheightmap;
         this.heightMap = heightMap;
@@ -47,14 +49,14 @@ public class TerrainFaces
 
         this.OceanheightMultiplier = OceanheightMultiplier;
         this.heightMultiplier = heightMultiplier;
-        this.WATERLEVEL = WATERLEVEL;
+        this.WaterLevel = WaterLevel;
         this.MountainLevel = MountainLevel;
     }
 
 
     public void ConstructMesh()
     {
-        Vector3[] vertices = new Vector3[resolution * resolution];
+        UnityEngine.Vector3[] vertices = new UnityEngine.Vector3[resolution * resolution];
         Color[] colors = new Color[resolution * resolution];
         
         int[] triangles = new int[(resolution - 1) * (resolution - 1) * 6];
@@ -72,7 +74,7 @@ public class TerrainFaces
  
                 // Sample Bathymetry heightmap and Topography heightmap then displace radially
                 
-                if (OceanheightMap != null || heightMap != null || PlateMap != null)
+                if (OceanheightMap != null || heightMap != null)
                 {
                     var coord = GeoMaths.PointToCoordinate(pointOnUnitSphere);
 
@@ -87,13 +89,18 @@ public class TerrainFaces
                     
                     float radius = 1f + sample * heightMultiplier;
 
-
                     vertices[i] = pointOnUnitSphere * (radiusO + radius);
+
+                    // if(vertices[i] in PlateMap coordinates){
+                        
+                    //     Set Color to Red.
+                    // }
+
                     Color mountaincolor = new Color32(245,245,245,1); // White Smoke
                     Color terraincolor = new Color32(128,200,19,1); // Muted Green
                     Color watercolor = new Color32(0,102,204,1); // Ocean Blue
                     
-                    if(radiusO + radius > WATERLEVEL)
+                    if(radiusO + radius > WaterLevel)
                     {
                         if (radiusO + radius > MountainLevel)
                         {
@@ -136,5 +143,61 @@ public class TerrainFaces
         mesh.colors = colors;
 
         mesh.RecalculateNormals();
+
+        if(PlateMap != null)
+        {
+            //Render Plate Boundaries
+
+            foreach(KeyValuePair<string, List<float[]>> Plate in PlateMap)
+            {
+                Color plateColor = new Color32(255,0,0,1);
+                Debug.Log("Plate: " + Plate.Key);
+                foreach(float[] point in Plate.Value)
+                {
+                    float latitude = point[0];
+                    float longitude = point[1];
+                    
+                    Debug.Log("Latitude: " + latitude + ", Longitude: " + longitude);
+
+                    // Coordinate platecoord = new Coordinate(latitude, longitude);
+                    // UnityEngine.Vector3 platepoint = GeoMaths.CoordinateToPoint(platecoord);
+
+                    // int closestvertex = FindClosestVertex(vertices, platepoint);
+
+                    // if(closestvertex >= 0){
+                    //     colors[closestvertex] = plateColor;
+                    // }
+                    
+                }
+            }
+            // mesh.colors = colors; 
+        } 
+    }
+
+    private UnityEngine.Vector3 CoordinateToSpherePoint(float longitude, float latitude)
+    {
+        float x = Mathf.Cos(latitude) * Mathf.Cos(longitude);
+        float y = Mathf.Sin(latitude);
+        float z = Mathf.Cos(latitude) * Mathf.Sin(longitude);
+        return new UnityEngine.Vector3(x, y, z).normalized;
+    }
+    
+    private int FindClosestVertex(UnityEngine.Vector3[] vertices, UnityEngine.Vector3 point)
+    {
+        int closest = -1;
+        float minDistance = 0.1f;
+        
+        for(int i = 0; i < vertices.Length; i++)
+        {
+            float distance = UnityEngine.Vector3.Distance(vertices[i].normalized, point);
+            if(distance < minDistance)
+            {
+                minDistance = distance;
+                closest = i;
+                if (minDistance <0.01f) return closest;
+            }
+        }
+        
+        return closest;
     }
 }
