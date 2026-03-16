@@ -16,8 +16,7 @@ public class Planet : MonoBehaviour
     public float MountainLevel = 2.25f;
     public Texture2D OceanheightMap;
     public Texture2D heightMap;
-
-    public Dictionary<string, List<List<float>>> PlateMap;
+    public Dictionary<string, List<float[]>> PlateMap;
 
     [Range(0f, 1f)]
     public float Oceanelevation = 0.15f;
@@ -51,8 +50,8 @@ public class Planet : MonoBehaviour
         if (OceanheightMap == null) OceanheightMap = Resources.Load<Texture2D>("BathyProcessed");
         if (heightMap == null) heightMap = Resources.Load<Texture2D>("TopoHeight");
         if(PlateMap == null){
-            /* string path = "TectonicPlates";
-            PlateMap = Mapping.Map(path); */
+            string path = "TectonicPlates";
+            PlateMap = Mapping.Map(path);
         }
 
         if (meshFilters == null || meshFilters.Length == 0)
