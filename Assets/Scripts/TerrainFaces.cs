@@ -177,6 +177,7 @@ public class TerrainFaces
         }
 
         mesh.Clear();
+        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32; //Update maximum integer representation limit to increase resolution.
 
         mesh.vertices = vertices;
         mesh.triangles = triangles;
