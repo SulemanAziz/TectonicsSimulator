@@ -10,18 +10,24 @@ public class Planet : MonoBehaviour
     public int resolution = 128;
 
     [Range (1f,3f)]
-    public float WATERLEVEL = 1f;
+    public float WaterLevel = 2.1f;
 
     [Range (2f, 5f)]
-    public float MountainLevel = 2.25f;
+    public float MountainLevel = 2.22f;
+
+    [Range (5, 50)]
+    public int PlatePrecisionFactor = 10;
+
+    [Range (0.1f, 10f)]
+    public float PlateToleranceDegrees = 0.5f;
     public Texture2D OceanheightMap;
     public Texture2D heightMap;
     public Dictionary<string, List<float[]>> PlateMap;
 
     [Range(0f, 1f)]
-    public float Oceanelevation = 0.15f;
+    public float OceanElevation = 0.1f;
     [Range(0f, 1f)]
-    public float Topographyelevation = 0.15f;
+    public float TopographyElevation = 0.18f;
 
     [SerializeField, HideInInspector]
     MeshFilter[] meshFilters;
@@ -80,7 +86,7 @@ public class Planet : MonoBehaviour
                 meshFilters[i].sharedMesh = new Mesh();
             }
 
-            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, heightMap, PlateMap, Oceanelevation, Topographyelevation, WATERLEVEL, MountainLevel);
+            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, heightMap, PlateMap, PlatePrecisionFactor, PlateToleranceDegrees, OceanElevation, TopographyElevation, WaterLevel, MountainLevel);
         }
     }
 
