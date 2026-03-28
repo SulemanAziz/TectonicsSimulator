@@ -6,8 +6,8 @@ using UnityEngine.Analytics;
 
 public class Planet : MonoBehaviour
 {
-    [Range(2, 256)]
-    public int resolution = 10;
+    [Range(2, 1024)]
+    public int resolution = 128;
 
     [Range (1f,3f)]
     public float WATERLEVEL = 1f;
