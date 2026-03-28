@@ -15,14 +15,12 @@ public class TerrainFaces
     Texture2D heightMap;
     Dictionary<string, List<float[]>> PlateMap;
     HashSet<string> PlateCoordSet;
-    int PlatePrecisionFactor = 10; // keys per degree (10 => 0.1° resolution)
-    float PlateToleranceDegrees = 0.5f; // tolerance in degrees for matching
+    int PlatePrecisionFactor; // keys per degree (10 => 0.1° resolution)
+    float PlateToleranceDegrees; // tolerance in degrees for matching
     float OceanheightMultiplier;
-    float heightMultiplier;
-
+    float HeightMultiplier;
     float WaterLevel;
     float MountainLevel;
-
 
     public static UnityEngine.Vector3 PointOnUnitCubeToPointOnUnitSphere(UnityEngine.Vector3 p)
     {
@@ -37,7 +35,7 @@ public class TerrainFaces
         return new UnityEngine.Vector3(x,y,z);
     }
     
-    public TerrainFaces(Mesh m, int res, UnityEngine.Vector3 up, Texture2D Oceanheightmap, Texture2D heightMap = null, Dictionary<string, List<float[]>> PlateMap = null, float OceanheightMultiplier = 0f, float heightMultiplier = 0f, float WaterLevel = 1f, float MountainLevel = 2.25f)
+    public TerrainFaces(Mesh m, int res, UnityEngine.Vector3 up, Texture2D Oceanheightmap, Texture2D heightMap = null, Dictionary<string, List<float[]>> PlateMap = null, int PlatePrecisionFactor = 10, float PlateToleranceDegrees = 0.5f , float OceanheightMultiplier = 0f, float HeightMultiplier = 0f, float WaterLevel = 1f, float MountainLevel = 2.25f)
     {
         mesh = m;
         resolution = res;
@@ -50,7 +48,7 @@ public class TerrainFaces
         this.heightMap = heightMap;
         this.PlateMap = PlateMap;
 
-        // Build a hash set of plate coordinates (quantized) for fast lookup.
+        // Build a hash set of plate coordinates
         if (this.PlateMap != null)
         {
             PlateCoordSet = new HashSet<string>();
@@ -66,9 +64,12 @@ public class TerrainFaces
         }
 
         this.OceanheightMultiplier = OceanheightMultiplier;
-        this.heightMultiplier = heightMultiplier;
+        this.HeightMultiplier = HeightMultiplier;
         this.WaterLevel = WaterLevel;
         this.MountainLevel = MountainLevel;
+
+        this.PlatePrecisionFactor = PlatePrecisionFactor;
+        this.PlateToleranceDegrees = PlateToleranceDegrees;
     }
 
 
@@ -105,7 +106,7 @@ public class TerrainFaces
 
                     float sample = heightMap.GetPixelBilinear(u,v).r;
                     
-                    float radius = 1f + sample * heightMultiplier;
+                    float radius = 1f + sample * HeightMultiplier;
 
                     vertices[i] = pointOnUnitSphere * (radiusO + radius);
 
@@ -118,7 +119,6 @@ public class TerrainFaces
                         if (radiusO + radius > MountainLevel)
                         {
                             colors[i] = mountaincolor;
-
                         }
                         else
                         colors[i] = terraincolor;
