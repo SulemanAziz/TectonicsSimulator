@@ -14,6 +14,9 @@ public class TerrainFaces
     Texture2D OceanheightMap;
     Texture2D heightMap;
     Dictionary<string, List<float[]>> PlateMap;
+    HashSet<string> PlateCoordSet;
+    int PlatePrecisionFactor = 10; // keys per degree (10 => 0.1° resolution)
+    float PlateToleranceDegrees = 0.5f; // tolerance in degrees for matching
     float OceanheightMultiplier;
     float heightMultiplier;
 
@@ -46,6 +49,21 @@ public class TerrainFaces
         this.OceanheightMap = Oceanheightmap;
         this.heightMap = heightMap;
         this.PlateMap = PlateMap;
+
+        // Build a hash set of plate coordinates (quantized) for fast lookup.
+        if (this.PlateMap != null)
+        {
+            PlateCoordSet = new HashSet<string>();
+            foreach (var plate in this.PlateMap)
+            {
+                foreach (float[] pt in plate.Value)
+                {
+                    int lonKey = Mathf.RoundToInt(pt[0] * PlatePrecisionFactor);
+                    int latKey = Mathf.RoundToInt(pt[1] * PlatePrecisionFactor);
+                    PlateCoordSet.Add(lonKey + ":" + latKey);
+                }
+            }
+        }
 
         this.OceanheightMultiplier = OceanheightMultiplier;
         this.heightMultiplier = heightMultiplier;
@@ -91,11 +109,6 @@ public class TerrainFaces
 
                     vertices[i] = pointOnUnitSphere * (radiusO + radius);
 
-                    // if(vertices[i] in PlateMap coordinates){
-                        
-                    //     Set Color to Red.
-                    // }
-
                     Color mountaincolor = new Color32(245,245,245,1); // White Smoke
                     Color terraincolor = new Color32(128,200,19,1); // Muted Green
                     Color watercolor = new Color32(0,102,204,1); // Ocean Blue
@@ -105,6 +118,7 @@ public class TerrainFaces
                         if (radiusO + radius > MountainLevel)
                         {
                             colors[i] = mountaincolor;
+
                         }
                         else
                         colors[i] = terraincolor;
@@ -112,6 +126,32 @@ public class TerrainFaces
                     else
                     {
                         colors[i] = watercolor;
+                    }
+
+                    // Check if this vertex is on a plate boundary using hashed coords for performance
+                    if (PlateMap != null && PlateCoordSet != null)
+                    {
+                        bool onPlate = false;
+
+                        // Convert coordinate radians to degrees for comparison with PlateMap (which is in degrees)
+                        int lonKey = Mathf.RoundToInt(coord.longitude * Mathf.Rad2Deg * PlatePrecisionFactor);
+                        int latKey = Mathf.RoundToInt(coord.latitude * Mathf.Rad2Deg * PlatePrecisionFactor);
+
+                        // Compute neighbor range based on desired tolerance
+                        int neighborRange = Mathf.CeilToInt(PlateToleranceDegrees * PlatePrecisionFactor);
+
+                        for (int dx = -neighborRange; dx <= neighborRange && !onPlate; dx++)
+                        {
+                            for (int dy = -neighborRange; dy <= neighborRange && !onPlate; dy++)
+                            {
+                                string key = (lonKey + dx) + ":" + (latKey + dy);
+                                if (PlateCoordSet.Contains(key))
+                                {
+                                    colors[i] = new Color32(255, 255, 0, 1); // Yellow
+                                    onPlate = true;
+                                }
+                            }
+                        }
                     }
                 }
                 else
@@ -137,67 +177,12 @@ public class TerrainFaces
         }
 
         mesh.Clear();
+        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32; //Update maximum integer representation limit to increase resolution.
 
         mesh.vertices = vertices;
         mesh.triangles = triangles;
         mesh.colors = colors;
 
         mesh.RecalculateNormals();
-
-        if(PlateMap != null)
-        {
-            //Render Plate Boundaries
-
-            foreach(KeyValuePair<string, List<float[]>> Plate in PlateMap)
-            {
-                Color plateColor = new Color32(255,0,0,1);
-                Debug.Log("Plate: " + Plate.Key);
-                foreach(float[] point in Plate.Value)
-                {
-                    float latitude = point[0];
-                    float longitude = point[1];
-                    
-                    Debug.Log("Latitude: " + latitude + ", Longitude: " + longitude);
-
-                    // Coordinate platecoord = new Coordinate(latitude, longitude);
-                    // UnityEngine.Vector3 platepoint = GeoMaths.CoordinateToPoint(platecoord);
-
-                    // int closestvertex = FindClosestVertex(vertices, platepoint);
-
-                    // if(closestvertex >= 0){
-                    //     colors[closestvertex] = plateColor;
-                    // }
-                    
-                }
-            }
-            // mesh.colors = colors; 
-        } 
-    }
-
-    private UnityEngine.Vector3 CoordinateToSpherePoint(float longitude, float latitude)
-    {
-        float x = Mathf.Cos(latitude) * Mathf.Cos(longitude);
-        float y = Mathf.Sin(latitude);
-        float z = Mathf.Cos(latitude) * Mathf.Sin(longitude);
-        return new UnityEngine.Vector3(x, y, z).normalized;
-    }
-    
-    private int FindClosestVertex(UnityEngine.Vector3[] vertices, UnityEngine.Vector3 point)
-    {
-        int closest = -1;
-        float minDistance = 0.1f;
-        
-        for(int i = 0; i < vertices.Length; i++)
-        {
-            float distance = UnityEngine.Vector3.Distance(vertices[i].normalized, point);
-            if(distance < minDistance)
-            {
-                minDistance = distance;
-                closest = i;
-                if (minDistance <0.01f) return closest;
-            }
-        }
-        
-        return closest;
     }
 }
