@@ -21,7 +21,7 @@ public class Planet : MonoBehaviour
     [Range (0.1f, 10f)]
     public float PlateToleranceDegrees = 0.5f;
     public Texture2D OceanheightMap;
-    public Texture2D heightMap;
+    public Texture2D TerrainheightMap;
     public Dictionary<string, List<float[]>> PlateMap;
 
     [Range(0f, 1f)]
@@ -54,7 +54,7 @@ public class Planet : MonoBehaviour
     {
         // Load Resources heightmap if not already set in inspector
         if (OceanheightMap == null) OceanheightMap = Resources.Load<Texture2D>("BathyProcessed");
-        if (heightMap == null) heightMap = Resources.Load<Texture2D>("TopoHeight");
+        if (TerrainheightMap == null) TerrainheightMap = Resources.Load<Texture2D>("TopoHeight");
         if(PlateMap == null){
             string path = "TectonicPlates";
             PlateMap = Mapping.Map(path);
@@ -86,7 +86,7 @@ public class Planet : MonoBehaviour
                 meshFilters[i].sharedMesh = new Mesh();
             }
 
-            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, heightMap, PlateMap, PlatePrecisionFactor, PlateToleranceDegrees, OceanElevation, TopographyElevation, WaterLevel, MountainLevel);
+            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, TerrainheightMap, PlateMap, PlatePrecisionFactor, PlateToleranceDegrees, OceanElevation, TopographyElevation, WaterLevel, MountainLevel);
         }
     }
 
