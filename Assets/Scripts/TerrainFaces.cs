@@ -12,7 +12,7 @@ public class TerrainFaces
     UnityEngine.Vector3 axisA;
     UnityEngine.Vector3 axisB;
     Texture2D OceanheightMap;
-    Texture2D heightMap;
+    Texture2D TerrainheightMap;
     Dictionary<string, List<float[]>> PlateMap;
     HashSet<string> PlateCoordSet;
     int PlatePrecisionFactor; // keys per degree (10 => 0.1° resolution)
@@ -35,7 +35,7 @@ public class TerrainFaces
         return new UnityEngine.Vector3(x,y,z);
     }
     
-    public TerrainFaces(Mesh m, int res, UnityEngine.Vector3 up, Texture2D Oceanheightmap, Texture2D heightMap = null, Dictionary<string, List<float[]>> PlateMap = null, int PlatePrecisionFactor = 10, float PlateToleranceDegrees = 0.5f , float OceanheightMultiplier = 0f, float HeightMultiplier = 0f, float WaterLevel = 1f, float MountainLevel = 2.25f)
+    public TerrainFaces(Mesh m, int res, UnityEngine.Vector3 up, Texture2D Oceanheightmap, Texture2D TerrainheightMap = null, Dictionary<string, List<float[]>> PlateMap = null, int PlatePrecisionFactor = 10, float PlateToleranceDegrees = 0.5f , float OceanheightMultiplier = 0f, float HeightMultiplier = 0f, float WaterLevel = 1f, float MountainLevel = 2.25f)
     {
         mesh = m;
         resolution = res;
@@ -45,7 +45,7 @@ public class TerrainFaces
         axisB = UnityEngine.Vector3.Cross(localUp, axisA);
 
         this.OceanheightMap = Oceanheightmap;
-        this.heightMap = heightMap;
+        this.TerrainheightMap = TerrainheightMap;
         this.PlateMap = PlateMap;
 
         // Build a hash set of plate coordinates
@@ -93,7 +93,7 @@ public class TerrainFaces
  
                 // Sample Bathymetry heightmap and Topography heightmap then displace radially
                 
-                if (OceanheightMap != null || heightMap != null)
+                if (OceanheightMap != null || TerrainheightMap != null)
                 {
                     var coord = GeoMaths.PointToCoordinate(pointOnUnitSphere);
 
@@ -104,7 +104,7 @@ public class TerrainFaces
                     
                     float radiusO = 1f + sampleO * OceanheightMultiplier;
 
-                    float sample = heightMap.GetPixelBilinear(u,v).r;
+                    float sample = TerrainheightMap.GetPixelBilinear(u,v).r;
                     
                     float radius = 1f + sample * HeightMultiplier;
 
