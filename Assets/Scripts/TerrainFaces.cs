@@ -14,13 +14,21 @@ public class TerrainFaces
     Texture2D OceanheightMap;
     Texture2D TerrainheightMap;
     Dictionary<string, List<float[]>> PlateMap;
-    HashSet<string> PlateCoordSet;
+    
+    // CHANGED: Using HashSet<long> instead of HashSet<string> to eliminate garbage collection strings.
+    HashSet<long> PlateCoordSet;
+    
     int PlatePrecisionFactor; // keys per degree (10 => 0.1° resolution)
     float PlateToleranceDegrees; // tolerance in degrees for matching
     float OceanheightMultiplier;
     float HeightMultiplier;
     float WaterLevel;
     float MountainLevel;
+
+    // CHANGED: Caching colors for instantaneous toggle without mesh rebuilds.
+    Color[] baseColors;
+    Color[] plateColors;
+    bool platesCurrentlyShowing = true;
 
     public static UnityEngine.Vector3 PointOnUnitCubeToPointOnUnitSphere(UnityEngine.Vector3 p)
     {
@@ -48,21 +56,6 @@ public class TerrainFaces
         this.TerrainheightMap = TerrainheightMap;
         this.PlateMap = PlateMap;
 
-        // Build a hash set of plate coordinates
-        if (this.PlateMap != null)
-        {
-            PlateCoordSet = new HashSet<string>();
-            foreach (var plate in this.PlateMap)
-            {
-                foreach (float[] pt in plate.Value)
-                {
-                    int lonKey = Mathf.RoundToInt(pt[0] * PlatePrecisionFactor);
-                    int latKey = Mathf.RoundToInt(pt[1] * PlatePrecisionFactor);
-                    PlateCoordSet.Add(lonKey + ":" + latKey);
-                }
-            }
-        }
-
         this.OceanheightMultiplier = OceanheightMultiplier;
         this.HeightMultiplier = HeightMultiplier;
         this.WaterLevel = WaterLevel;
@@ -70,13 +63,44 @@ public class TerrainFaces
 
         this.PlatePrecisionFactor = PlatePrecisionFactor;
         this.PlateToleranceDegrees = PlateToleranceDegrees;
+
+        // Build a hash set of plate coordinates using long instead of string
+        if (this.PlateMap != null)
+        {
+            BuildPlateHash();
+        }
     }
 
+    /// <summary>
+    /// Builds the HashSet using bitwise packing to combine X and Y into a single 64-bit long integer.
+    /// This vastly accelerates lookup speeds and removes string allocations entirely.
+    /// </summary>
+    private void BuildPlateHash()
+    {
+        PlateCoordSet = new HashSet<long>();
+        if (this.PlateMap == null) return;
+        
+        foreach (var plate in this.PlateMap)
+        {
+            foreach (float[] pt in plate.Value)
+            {
+                int lonKey = Mathf.RoundToInt(pt[0] * PlatePrecisionFactor);
+                int latKey = Mathf.RoundToInt(pt[1] * PlatePrecisionFactor);
+                
+                // Pack lon and lat into a single long to avoid string allocation
+                long key = ((long)lonKey << 32) | (uint)latKey;
+                PlateCoordSet.Add(key);
+            }
+        }
+    }
 
     public void ConstructMesh()
     {
         UnityEngine.Vector3[] vertices = new UnityEngine.Vector3[resolution * resolution];
-        Color[] colors = new Color[resolution * resolution];
+        
+        // Initialize cached color arrays
+        baseColors = new Color[resolution * resolution];
+        plateColors = new Color[resolution * resolution];
         
         int[] triangles = new int[(resolution - 1) * (resolution - 1) * 6];
         int triIndex = 0;
@@ -92,7 +116,6 @@ public class TerrainFaces
                 UnityEngine.Vector3 pointOnUnitSphere = PointOnUnitCubeToPointOnUnitSphere(pointOnUnitCube);
  
                 // Sample Bathymetry heightmap and Topography heightmap then displace radially
-                
                 if (OceanheightMap != null || TerrainheightMap != null)
                 {
                     var coord = GeoMaths.PointToCoordinate(pointOnUnitSphere);
@@ -101,11 +124,8 @@ public class TerrainFaces
                     float v = (coord.latitude  / Mathf.PI) + 0.5f;
 
                     float sampleO = OceanheightMap.GetPixelBilinear(u, v).r; // assume grayscale
-                    
                     float radiusO = 1f + sampleO * OceanheightMultiplier;
-
                     float sample = TerrainheightMap.GetPixelBilinear(u,v).r;
-                    
                     float radius = 1f + sample * HeightMultiplier;
 
                     vertices[i] = pointOnUnitSphere * (radiusO + radius);
@@ -118,17 +138,21 @@ public class TerrainFaces
                     {
                         if (radiusO + radius > MountainLevel)
                         {
-                            colors[i] = mountaincolor;
+                            baseColors[i] = mountaincolor;
                         }
-                        else
-                        colors[i] = terraincolor;
+                        else {
+                            baseColors[i] = terraincolor;
+                        }
                     }
                     else
                     {
-                        colors[i] = watercolor;
+                        baseColors[i] = watercolor;
                     }
 
-                    // Check if this vertex is on a plate boundary using hashed coords for performance
+                    // By default, the plate colors map matches the base colors map precisely
+                    plateColors[i] = baseColors[i];
+
+                    // Check if this vertex is on a plate boundary using fast long hashing
                     if (PlateMap != null && PlateCoordSet != null)
                     {
                         bool onPlate = false;
@@ -144,10 +168,10 @@ public class TerrainFaces
                         {
                             for (int dy = -neighborRange; dy <= neighborRange && !onPlate; dy++)
                             {
-                                string key = (lonKey + dx) + ":" + (latKey + dy);
+                                long key = ((long)(lonKey + dx) << 32) | (uint)(latKey + dy);
                                 if (PlateCoordSet.Contains(key))
                                 {
-                                    colors[i] = new Color32(255, 255, 0, 1); // Yellow
+                                    plateColors[i] = new Color32(255, 255, 0, 1); // Yellow marking the boundary
                                     onPlate = true;
                                 }
                             }
@@ -157,7 +181,8 @@ public class TerrainFaces
                 else
                 {
                     vertices[i] = pointOnUnitSphere;
-                    colors[i] = Color.blue;
+                    baseColors[i] = Color.blue;
+                    plateColors[i] = Color.blue;
                 }
  
                 if (x != resolution - 1 && y != resolution - 1)
@@ -181,8 +206,86 @@ public class TerrainFaces
 
         mesh.vertices = vertices;
         mesh.triangles = triangles;
-        mesh.colors = colors;
+        
+        // Initial mesh colors application checking toggle state
+        mesh.colors = platesCurrentlyShowing ? plateColors : baseColors;
 
         mesh.RecalculateNormals();
+    }
+
+    /// <summary>
+    /// Swaps the rendered mesh colors without recalculating the geometry. O(1) instantaneous operation.
+    /// </summary>
+    public void TogglePlates(bool show)
+    {
+        platesCurrentlyShowing = show;
+        if (mesh != null && baseColors != null && plateColors != null)
+        {
+            mesh.colors = platesCurrentlyShowing ? plateColors : baseColors;
+        }
+    }
+
+    /// <summary>
+    /// Allows swapping the loaded plate mapping and updates colors dynamically, minimizing expensive vertex generation.
+    /// </summary>
+    public void UpdatePlateData(Dictionary<string, List<float[]>> newPlateMap)
+    {
+        this.PlateMap = newPlateMap;
+        BuildPlateHash();
+        RecalculatePlateColors();
+    }
+
+    /// <summary>
+    /// Recalculates only the yellow boundaries. This logic ignores geometry, making dynamic map switching much faster.
+    /// </summary>
+    private void RecalculatePlateColors()
+    {
+        if (baseColors == null || plateColors == null) return;
+        
+        for (int y = 0; y < resolution; y++)
+        {
+            for (int x = 0; x < resolution; x++)
+            {
+                int i = x + y * resolution;
+                
+                // Reset to regular terrain color first
+                plateColors[i] = baseColors[i];
+
+                if (OceanheightMap != null || TerrainheightMap != null)
+                {
+                    UnityEngine.Vector2 percent = new UnityEngine.Vector2(x, y) / (resolution - 1);
+                    UnityEngine.Vector3 pointOnUnitCube = localUp + (percent.x - 0.5f) * 2 * axisA + (percent.y - 0.5f) * 2 * axisB;
+                    UnityEngine.Vector3 pointOnUnitSphere = PointOnUnitCubeToPointOnUnitSphere(pointOnUnitCube);
+                    var coord = GeoMaths.PointToCoordinate(pointOnUnitSphere);
+
+                    if (PlateMap != null && PlateCoordSet != null)
+                    {
+                        bool onPlate = false;
+                        int lonKey = Mathf.RoundToInt(coord.longitude * Mathf.Rad2Deg * PlatePrecisionFactor);
+                        int latKey = Mathf.RoundToInt(coord.latitude * Mathf.Rad2Deg * PlatePrecisionFactor);
+                        int neighborRange = Mathf.CeilToInt(PlateToleranceDegrees * PlatePrecisionFactor);
+
+                        for (int dx = -neighborRange; dx <= neighborRange && !onPlate; dx++)
+                        {
+                            for (int dy = -neighborRange; dy <= neighborRange && !onPlate; dy++)
+                            {
+                                long key = ((long)(lonKey + dx) << 32) | (uint)(latKey + dy);
+                                if (PlateCoordSet.Contains(key))
+                                {
+                                    plateColors[i] = new Color32(255, 255, 0, 1); // Yellow
+                                    onPlate = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Apply updated colors to mesh immediately if supposed to be visible
+        if (platesCurrentlyShowing && mesh != null)
+        {
+            mesh.colors = plateColors;
+        }
     }
 }
