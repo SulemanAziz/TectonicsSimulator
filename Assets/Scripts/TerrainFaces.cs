@@ -15,8 +15,9 @@ public class TerrainFaces
     Texture2D TerrainheightMap;
     Dictionary<string, List<float[]>> PlateMap;
     
-    // CHANGED: Using HashSet<long> instead of HashSet<string> to eliminate garbage collection strings.
-    HashSet<long> PlateCoordSet;
+    // CHANGED: Instead of hashing plates, we hash the physical vertices for O(P) boundary updates!
+    // This maps a coordinate key to a list of vertex indices.
+    Dictionary<long, List<int>> vertexSpatialHash;
     
     int PlatePrecisionFactor; // keys per degree (10 => 0.1° resolution)
     float PlateToleranceDegrees; // tolerance in degrees for matching
@@ -25,7 +26,7 @@ public class TerrainFaces
     float WaterLevel;
     float MountainLevel;
 
-    // CHANGED: Caching colors for instantaneous toggle without mesh rebuilds.
+    // Caching colors for instantaneous toggle
     Color[] baseColors;
     Color[] plateColors;
     bool platesCurrentlyShowing = true;
@@ -63,35 +64,6 @@ public class TerrainFaces
 
         this.PlatePrecisionFactor = PlatePrecisionFactor;
         this.PlateToleranceDegrees = PlateToleranceDegrees;
-
-        // Build a hash set of plate coordinates using long instead of string
-        if (this.PlateMap != null)
-        {
-            BuildPlateHash();
-        }
-    }
-
-    /// <summary>
-    /// Builds the HashSet using bitwise packing to combine X and Y into a single 64-bit long integer.
-    /// This vastly accelerates lookup speeds and removes string allocations entirely.
-    /// </summary>
-    private void BuildPlateHash()
-    {
-        PlateCoordSet = new HashSet<long>();
-        if (this.PlateMap == null) return;
-        
-        foreach (var plate in this.PlateMap)
-        {
-            foreach (float[] pt in plate.Value)
-            {
-                int lonKey = Mathf.RoundToInt(pt[0] * PlatePrecisionFactor);
-                int latKey = Mathf.RoundToInt(pt[1] * PlatePrecisionFactor);
-                
-                // Pack lon and lat into a single long to avoid string allocation
-                long key = ((long)lonKey << 32) | (uint)latKey;
-                PlateCoordSet.Add(key);
-            }
-        }
     }
 
     public void ConstructMesh()
@@ -101,6 +73,9 @@ public class TerrainFaces
         // Initialize cached color arrays
         baseColors = new Color[resolution * resolution];
         plateColors = new Color[resolution * resolution];
+        
+        // Initialize our reverse lookup map
+        vertexSpatialHash = new Dictionary<long, List<int>>();
         
         int[] triangles = new int[(resolution - 1) * (resolution - 1) * 6];
         int triIndex = 0;
@@ -130,6 +105,17 @@ public class TerrainFaces
 
                     vertices[i] = pointOnUnitSphere * (radiusO + radius);
 
+                    // Build the Spatial Hash for this vertex (used for rapid Boundary-Centric physics updating later)
+                    int lonKey = Mathf.RoundToInt(coord.longitude * Mathf.Rad2Deg * PlatePrecisionFactor);
+                    int latKey = Mathf.RoundToInt(coord.latitude * Mathf.Rad2Deg * PlatePrecisionFactor);
+                    long key = ((long)lonKey << 32) | (uint)latKey;
+                    
+                    if (!vertexSpatialHash.ContainsKey(key)) {
+                        vertexSpatialHash[key] = new List<int>();
+                    }
+                    vertexSpatialHash[key].Add(i);
+
+                    // Apply topography paint
                     Color mountaincolor = new Color32(245,245,245,1); // White Smoke
                     Color terraincolor = new Color32(128,200,19,1); // Muted Green
                     Color watercolor = new Color32(0,102,204,1); // Ocean Blue
@@ -148,42 +134,15 @@ public class TerrainFaces
                     {
                         baseColors[i] = watercolor;
                     }
-
-                    // By default, the plate colors map matches the base colors map precisely
-                    plateColors[i] = baseColors[i];
-
-                    // Check if this vertex is on a plate boundary using fast long hashing
-                    if (PlateMap != null && PlateCoordSet != null)
-                    {
-                        bool onPlate = false;
-
-                        // Convert coordinate radians to degrees for comparison with PlateMap (which is in degrees)
-                        int lonKey = Mathf.RoundToInt(coord.longitude * Mathf.Rad2Deg * PlatePrecisionFactor);
-                        int latKey = Mathf.RoundToInt(coord.latitude * Mathf.Rad2Deg * PlatePrecisionFactor);
-
-                        // Compute neighbor range based on desired tolerance
-                        int neighborRange = Mathf.CeilToInt(PlateToleranceDegrees * PlatePrecisionFactor);
-
-                        for (int dx = -neighborRange; dx <= neighborRange && !onPlate; dx++)
-                        {
-                            for (int dy = -neighborRange; dy <= neighborRange && !onPlate; dy++)
-                            {
-                                long key = ((long)(lonKey + dx) << 32) | (uint)(latKey + dy);
-                                if (PlateCoordSet.Contains(key))
-                                {
-                                    plateColors[i] = new Color32(255, 255, 0, 1); // Yellow marking the boundary
-                                    onPlate = true;
-                                }
-                            }
-                        }
-                    }
                 }
                 else
                 {
                     vertices[i] = pointOnUnitSphere;
                     baseColors[i] = Color.blue;
-                    plateColors[i] = Color.blue;
                 }
+
+                // By default, mirror clean terrain into plate array temporarily
+                plateColors[i] = baseColors[i];
  
                 if (x != resolution - 1 && y != resolution - 1)
                 {
@@ -207,10 +166,10 @@ public class TerrainFaces
         mesh.vertices = vertices;
         mesh.triangles = triangles;
         
-        // Initial mesh colors application checking toggle state
-        mesh.colors = platesCurrentlyShowing ? plateColors : baseColors;
-
         mesh.RecalculateNormals();
+
+        // Calculate initial plate overlays and apply colors to mesh
+        RecalculatePlateColors();
     }
 
     /// <summary>
@@ -226,54 +185,55 @@ public class TerrainFaces
     }
 
     /// <summary>
-    /// Allows swapping the loaded plate mapping and updates colors dynamically, minimizing expensive vertex generation.
+    /// Swaps the loaded plate mapping and instantly recalculates boundary colors using fast O(P) boundary-centric updates.
+    /// Perfectly suited for real-time Plate Simulation updates!
     /// </summary>
     public void UpdatePlateData(Dictionary<string, List<float[]>> newPlateMap)
     {
         this.PlateMap = newPlateMap;
-        BuildPlateHash();
         RecalculatePlateColors();
     }
 
     /// <summary>
-    /// Recalculates only the yellow boundaries. This logic ignores geometry, making dynamic map switching much faster.
+    /// NEW BOUNDARY-CENTRIC ALGORITHM:
+    /// Recalculates only the yellow boundaries via O(P) Plate-Data scanning. 
+    /// This completely skips sweeping through the entire globe grid!
     /// </summary>
     private void RecalculatePlateColors()
     {
         if (baseColors == null || plateColors == null) return;
         
-        for (int y = 0; y < resolution; y++)
+        // 1. Instantly copy the pristine terrain over everything to clear old plates
+        System.Array.Copy(baseColors, plateColors, baseColors.Length);
+
+        // 2. Map new plates using our Spatial Dictionary mapping!
+        if (PlateMap != null && vertexSpatialHash != null)
         {
-            for (int x = 0; x < resolution; x++)
+            int neighborRange = Mathf.CeilToInt(PlateToleranceDegrees * PlatePrecisionFactor);
+
+            // ONLY iterate through actual Plate Data, completely removing N^2 mesh loop bottleneck
+            foreach (var plate in PlateMap)
             {
-                int i = x + y * resolution;
-                
-                // Reset to regular terrain color first
-                plateColors[i] = baseColors[i];
-
-                if (OceanheightMap != null || TerrainheightMap != null)
+                foreach (float[] pt in plate.Value)
                 {
-                    UnityEngine.Vector2 percent = new UnityEngine.Vector2(x, y) / (resolution - 1);
-                    UnityEngine.Vector3 pointOnUnitCube = localUp + (percent.x - 0.5f) * 2 * axisA + (percent.y - 0.5f) * 2 * axisB;
-                    UnityEngine.Vector3 pointOnUnitSphere = PointOnUnitCubeToPointOnUnitSphere(pointOnUnitCube);
-                    var coord = GeoMaths.PointToCoordinate(pointOnUnitSphere);
+                    int lonKey = Mathf.RoundToInt(pt[0] * PlatePrecisionFactor);
+                    int latKey = Mathf.RoundToInt(pt[1] * PlatePrecisionFactor);
 
-                    if (PlateMap != null && PlateCoordSet != null)
+                    // Add simulation thickness to our mathematical line
+                    for (int dx = -neighborRange; dx <= neighborRange; dx++)
                     {
-                        bool onPlate = false;
-                        int lonKey = Mathf.RoundToInt(coord.longitude * Mathf.Rad2Deg * PlatePrecisionFactor);
-                        int latKey = Mathf.RoundToInt(coord.latitude * Mathf.Rad2Deg * PlatePrecisionFactor);
-                        int neighborRange = Mathf.CeilToInt(PlateToleranceDegrees * PlatePrecisionFactor);
-
-                        for (int dx = -neighborRange; dx <= neighborRange && !onPlate; dx++)
+                        for (int dy = -neighborRange; dy <= neighborRange; dy++)
                         {
-                            for (int dy = -neighborRange; dy <= neighborRange && !onPlate; dy++)
+                            // Craft candidate hash
+                            long key = ((long)(lonKey + dx) << 32) | (uint)(latKey + dy);
+                            
+                            // Check our fast spatial cache to see if ANY physical mesh vertex exists here
+                            if (vertexSpatialHash.TryGetValue(key, out List<int> vertexIndices))
                             {
-                                long key = ((long)(lonKey + dx) << 32) | (uint)(latKey + dy);
-                                if (PlateCoordSet.Contains(key))
+                                // Paint every matching vertex index yellow
+                                foreach (int idx in vertexIndices)
                                 {
-                                    plateColors[i] = new Color32(255, 255, 0, 1); // Yellow
-                                    onPlate = true;
+                                    plateColors[idx] = new Color32(255, 255, 0, 1);
                                 }
                             }
                         }
