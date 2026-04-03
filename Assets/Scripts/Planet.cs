@@ -20,6 +20,16 @@ public class Planet : MonoBehaviour
 
     [Range (0.1f, 10f)]
     public float PlateToleranceDegrees = 0.5f;
+
+    [Header("Rendering API")]
+    [Tooltip("Toggle to instantly show or hide tectonic plate boundaries")]
+    public bool ShowPlates = true;
+    [Tooltip("The path or filename for the tectonic map data")]
+    public string currentDataFile = "TectonicPlates";
+
+    // Track the previous state of the toggle for smart validation
+    private bool previousShowPlates = true;
+
     public Texture2D OceanheightMap;
     public Texture2D TerrainheightMap;
     public Dictionary<string, List<float[]>> PlateMap;
@@ -38,6 +48,14 @@ public class Planet : MonoBehaviour
         // Only regenerate automatically if we are NOT playing the game
         if (!Application.isPlaying) 
         {
+            // Smart optimization: If ONLY the ShowPlates boolean changed, 
+            // just toggle the colors. Don't rebuild the whole mesh!
+            if (ShowPlates != previousShowPlates)
+            {
+                TogglePlateRendering(ShowPlates);
+                return; // Exit early
+            }
+
             Init();
             GenerateMesh();
         }
@@ -46,6 +64,7 @@ public class Planet : MonoBehaviour
     // --- CHANGE 2: Added Start() so it builds on Play ---
     void Start()
     {
+        previousShowPlates = ShowPlates;
         Init();
         GenerateMesh();
     }
@@ -55,9 +74,9 @@ public class Planet : MonoBehaviour
         // Load Resources heightmap if not already set in inspector
         if (OceanheightMap == null) OceanheightMap = Resources.Load<Texture2D>("BathyProcessed");
         if (TerrainheightMap == null) TerrainheightMap = Resources.Load<Texture2D>("TopoHeight");
+        
         if(PlateMap == null){
-            string path = "TectonicPlates";
-            PlateMap = Mapping.Map(path);
+            PlateMap = Mapping.Map(currentDataFile);
         }
 
         if (meshFilters == null || meshFilters.Length == 0)
@@ -97,6 +116,44 @@ public class Planet : MonoBehaviour
         foreach(TerrainFaces faces in terrainFaces)
         {
             faces.ConstructMesh();
+            // Apply current visibility correctly on generation
+            faces.TogglePlates(ShowPlates);
+        }
+    }
+
+    /// <summary>
+    /// Instantly switches plate rendering on or off without blocking the main thread or rebuilding geometry.
+    /// This is an O(1) instantaneous operation acting purely on cached Mesh color arrays.
+    /// </summary>
+    public void TogglePlateRendering(bool show)
+    {
+        ShowPlates = show;
+        previousShowPlates = show; // sync tracking
+
+        if (terrainFaces != null)
+        {
+            foreach (TerrainFaces face in terrainFaces)
+            {
+                if (face != null) face.TogglePlates(show);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Dynamically loads a mapping file and updates the visual display synchronously
+    /// without needing to rebuild underlying vertex geometry.
+    /// </summary>
+    public void LoadGeologicalData(string filename)
+    {
+        currentDataFile = filename;
+        PlateMap = Mapping.Map(currentDataFile);
+
+        if (terrainFaces != null)
+        {
+            foreach (TerrainFaces face in terrainFaces)
+            {
+                if (face != null) face.UpdatePlateData(PlateMap);
+            }
         }
     }
 }
