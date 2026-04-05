@@ -13,20 +13,13 @@ public class TerrainFaces
     UnityEngine.Vector3 axisB;
     Texture2D OceanheightMap;
     Texture2D TerrainheightMap;
-    Dictionary<string, List<float[]>> PlateMap;
-    
-    // CHANGED: Instead of hashing plates, we hash the physical vertices for O(P) boundary updates!
-    // This maps a coordinate key to a list of vertex indices.
+    Texture2D ColorMap;
+    public Dictionary<string, List<float[]>> PlateMap;
     Dictionary<long, List<int>> vertexSpatialHash;
-    
-    int PlatePrecisionFactor; // keys per degree (10 => 0.1° resolution)
-    float PlateToleranceDegrees; // tolerance in degrees for matching
+    int PlatePrecisionFactor;
+    float PlateToleranceDegrees; 
     float OceanheightMultiplier;
     float HeightMultiplier;
-    float WaterLevel;
-    float MountainLevel;
-
-    // Caching colors for instantaneous toggle
     Color[] baseColors;
     Color[] plateColors;
     bool platesCurrentlyShowing = true;
@@ -44,7 +37,7 @@ public class TerrainFaces
         return new UnityEngine.Vector3(x,y,z);
     }
     
-    public TerrainFaces(Mesh m, int res, UnityEngine.Vector3 up, Texture2D Oceanheightmap, Texture2D TerrainheightMap = null, Dictionary<string, List<float[]>> PlateMap = null, int PlatePrecisionFactor = 10, float PlateToleranceDegrees = 0.5f , float OceanheightMultiplier = 0f, float HeightMultiplier = 0f, float WaterLevel = 1f, float MountainLevel = 2.25f)
+    public TerrainFaces(Mesh m, int res, UnityEngine.Vector3 up, Texture2D Oceanheightmap, Texture2D TerrainheightMap = null, Texture2D ColorMap = null, Dictionary<string, List<float[]>> PlateMap = null, int PlatePrecisionFactor = 10, float PlateToleranceDegrees = 0.5f , float OceanheightMultiplier = 0f, float HeightMultiplier = 0f)
     {
         mesh = m;
         resolution = res;
@@ -56,11 +49,10 @@ public class TerrainFaces
         this.OceanheightMap = Oceanheightmap;
         this.TerrainheightMap = TerrainheightMap;
         this.PlateMap = PlateMap;
+        this.ColorMap = ColorMap;
 
         this.OceanheightMultiplier = OceanheightMultiplier;
         this.HeightMultiplier = HeightMultiplier;
-        this.WaterLevel = WaterLevel;
-        this.MountainLevel = MountainLevel;
 
         this.PlatePrecisionFactor = PlatePrecisionFactor;
         this.PlateToleranceDegrees = PlateToleranceDegrees;
@@ -69,12 +61,8 @@ public class TerrainFaces
     public void ConstructMesh()
     {
         UnityEngine.Vector3[] vertices = new UnityEngine.Vector3[resolution * resolution];
-        
-        // Initialize cached color arrays
         baseColors = new Color[resolution * resolution];
-        plateColors = new Color[resolution * resolution];
-        
-        // Initialize our reverse lookup map
+        plateColors = new Color[resolution * resolution];        
         vertexSpatialHash = new Dictionary<long, List<int>>();
         
         int[] triangles = new int[(resolution - 1) * (resolution - 1) * 6];
@@ -98,14 +86,13 @@ public class TerrainFaces
                     float u = (coord.longitude / (Mathf.PI * 2f)) + 0.5f;
                     float v = (coord.latitude  / Mathf.PI) + 0.5f;
 
-                    float sampleO = OceanheightMap.GetPixelBilinear(u, v).r; // assume grayscale
-                    float radiusO = 1f + sampleO * OceanheightMultiplier;
-                    float sample = TerrainheightMap.GetPixelBilinear(u,v).r;
-                    float radius = 1f + sample * HeightMultiplier;
+                    float Oceansample = OceanheightMap.GetPixelBilinear(u, v).maxColorComponent;
+                    float Oceanradius = 1f + Oceansample * OceanheightMultiplier;
+                    float Terrainsample = TerrainheightMap.GetPixelBilinear(u,v).maxColorComponent;
+                    float Terrainradius = 1f + Terrainsample * HeightMultiplier;
 
-                    vertices[i] = pointOnUnitSphere * (radiusO + radius);
+                    vertices[i] = pointOnUnitSphere * (Oceanradius + Terrainradius);
 
-                    // Build the Spatial Hash for this vertex (used for rapid Boundary-Centric physics updating later)
                     int lonKey = Mathf.RoundToInt(coord.longitude * Mathf.Rad2Deg * PlatePrecisionFactor);
                     int latKey = Mathf.RoundToInt(coord.latitude * Mathf.Rad2Deg * PlatePrecisionFactor);
                     long key = ((long)lonKey << 32) | (uint)latKey;
@@ -114,35 +101,11 @@ public class TerrainFaces
                         vertexSpatialHash[key] = new List<int>();
                     }
                     vertexSpatialHash[key].Add(i);
-
-                    // Apply topography paint
-                    Color mountaincolor = new Color32(245,245,245,1); // White Smoke
-                    Color terraincolor = new Color32(128,200,19,1); // Muted Green
-                    Color watercolor = new Color32(0,102,204,1); // Ocean Blue
                     
-                    if(radiusO + radius > WaterLevel)
-                    {
-                        if (radiusO + radius > MountainLevel)
-                        {
-                            baseColors[i] = mountaincolor;
-                        }
-                        else {
-                            baseColors[i] = terraincolor;
-                        }
-                    }
-                    else
-                    {
-                        baseColors[i] = watercolor;
-                    }
+                    // Read color from the colormap
+                    baseColors[i] = ColorMap.GetPixelBilinear(u,v);
+                    plateColors[i] = baseColors[i];
                 }
-                else
-                {
-                    vertices[i] = pointOnUnitSphere;
-                    baseColors[i] = Color.blue;
-                }
-
-                // By default, mirror clean terrain into plate array temporarily
-                plateColors[i] = baseColors[i];
  
                 if (x != resolution - 1 && y != resolution - 1)
                 {
@@ -167,14 +130,11 @@ public class TerrainFaces
         mesh.triangles = triangles;
         
         mesh.RecalculateNormals();
-
+        mesh.RecalculateBounds();
         // Calculate initial plate overlays and apply colors to mesh
         RecalculatePlateColors();
     }
 
-    /// <summary>
-    /// Swaps the rendered mesh colors without recalculating the geometry. O(1) instantaneous operation.
-    /// </summary>
     public void TogglePlates(bool show)
     {
         platesCurrentlyShowing = show;
@@ -184,21 +144,12 @@ public class TerrainFaces
         }
     }
 
-    /// <summary>
-    /// Swaps the loaded plate mapping and instantly recalculates boundary colors using fast O(P) boundary-centric updates.
-    /// Perfectly suited for real-time Plate Simulation updates!
-    /// </summary>
     public void UpdatePlateData(Dictionary<string, List<float[]>> newPlateMap)
     {
         this.PlateMap = newPlateMap;
         RecalculatePlateColors();
     }
 
-    /// <summary>
-    /// NEW BOUNDARY-CENTRIC ALGORITHM:
-    /// Recalculates only the yellow boundaries via O(P) Plate-Data scanning. 
-    /// This completely skips sweeping through the entire globe grid!
-    /// </summary>
     private void RecalculatePlateColors()
     {
         if (baseColors == null || plateColors == null) return;
