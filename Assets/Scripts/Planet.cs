@@ -3,31 +3,30 @@ using System.IO;
 using System.Data;
 using System.Collections.Generic;
 using UnityEngine.Analytics;
-
 public class Planet : MonoBehaviour
 {
     [Range(2, 1024)]
     public int resolution = 128;
 
-    [Range (1f,3f)]
-    public float WaterLevel = 2.1f;
-
-    [Range (2f, 5f)]
-    public float MountainLevel = 2.22f;
-
     [Range (5, 50)]
     public int PlatePrecisionFactor = 10;
 
     [Range (0.1f, 10f)]
-    public float PlateToleranceDegrees = 0.5f;
+    public float PlateToleranceDegrees = 0.3f;
+    public bool ShowPlates = false;
+    public string currentDataFile = "TectonicPlates";
+    // Track the previous state of the toggle for smart validation
+    private bool PlateState = false;
+
     public Texture2D OceanheightMap;
     public Texture2D TerrainheightMap;
-    public Dictionary<string, List<float[]>> PlateMap;
+    public Texture2D ColorMap;
+    private Dictionary<string, List<float[]>> PlateMap;
 
     [Range(0f, 1f)]
     public float OceanElevation = 0.1f;
     [Range(0f, 1f)]
-    public float TopographyElevation = 0.18f;
+    public float TopographyElevation = 0.15f;
 
     [SerializeField, HideInInspector]
     MeshFilter[] meshFilters;
@@ -35,17 +34,23 @@ public class Planet : MonoBehaviour
 
     void OnValidate()
     {
-        // Only regenerate automatically if we are NOT playing the game
         if (!Application.isPlaying) 
         {
+            if (ShowPlates != PlateState)
+            {
+                PlateState = ShowPlates;
+                TogglePlateRendering(PlateState);
+                return;
+            }
+
             Init();
             GenerateMesh();
         }
     }
 
-    // --- CHANGE 2: Added Start() so it builds on Play ---
     void Start()
     {
+        PlateState = ShowPlates;
         Init();
         GenerateMesh();
     }
@@ -53,19 +58,13 @@ public class Planet : MonoBehaviour
     void Init()
     {
         // Load Resources heightmap if not already set in inspector
-        if (OceanheightMap == null) OceanheightMap = Resources.Load<Texture2D>("BathyProcessed");
+        if (OceanheightMap == null) OceanheightMap = Resources.Load<Texture2D>("Ocean");
         if (TerrainheightMap == null) TerrainheightMap = Resources.Load<Texture2D>("TopoHeight");
-        if(PlateMap == null){
-            string path = "TectonicPlates";
-            PlateMap = Mapping.Map(path);
-        }
+        if (ColorMap == null) ColorMap = Resources.Load<Texture2D>("ColorMap");
 
-        if (meshFilters == null || meshFilters.Length == 0)
-        {
-            meshFilters = new MeshFilter[6];
-        }
+        if(PlateMap == null) PlateMap = Mapping.Map(currentDataFile);
+        if (meshFilters == null || meshFilters.Length == 0) meshFilters = new MeshFilter[6];
         terrainFaces = new TerrainFaces[6];
-
         UnityEngine.Vector3[] directions = { UnityEngine.Vector3.up, UnityEngine.Vector3.down, UnityEngine.Vector3.left, UnityEngine.Vector3.right, UnityEngine.Vector3.forward, UnityEngine.Vector3.back };
 
         for (int i = 0; i < 6; i++)
@@ -86,7 +85,7 @@ public class Planet : MonoBehaviour
                 meshFilters[i].sharedMesh = new Mesh();
             }
 
-            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, TerrainheightMap, PlateMap, PlatePrecisionFactor, PlateToleranceDegrees, OceanElevation, TopographyElevation, WaterLevel, MountainLevel);
+            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, TerrainheightMap, ColorMap, PlateMap, PlatePrecisionFactor, PlateToleranceDegrees, OceanElevation, TopographyElevation);
         }
     }
 
@@ -97,6 +96,32 @@ public class Planet : MonoBehaviour
         foreach(TerrainFaces faces in terrainFaces)
         {
             faces.ConstructMesh();
+            faces.TogglePlates(ShowPlates);
+        }
+    }
+
+    public void TogglePlateRendering(bool show)
+    {
+        if (terrainFaces != null)
+        {
+            foreach (TerrainFaces face in terrainFaces)
+            {
+                if (face != null) face.TogglePlates(show);
+            }
+        }
+    }
+
+    public void LoadGeologicalData(string filename)
+    {
+        currentDataFile = filename;
+        PlateMap = Mapping.Map(currentDataFile);
+
+        if (terrainFaces != null)
+        {
+            foreach (TerrainFaces face in terrainFaces)
+            {
+                if (face != null) face.UpdatePlateData(PlateMap);
+            }
         }
     }
 }
