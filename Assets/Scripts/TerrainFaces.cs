@@ -184,7 +184,7 @@ public class TerrainFaces
                                 // Paint every matching vertex index yellow
                                 foreach (int idx in vertexIndices)
                                 {
-                                    plateColors[idx] = new Color32(255, 255, 0, 1);
+                                    plateColors[idx] = new Color32(255, 255, 0, 255);
                                 }
                             }
                         }
