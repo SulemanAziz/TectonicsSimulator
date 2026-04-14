@@ -6,8 +6,8 @@ public class GlobeRenderTextureSetup : MonoBehaviour
     public Camera globeCamera;
     public RawImage globeViewportImage;
 
-    private const int TextureSize = 1024;
-    private const int TextureDepth = 24;
+    private const int TextureSize = 128; // What does this control?
+    private const int TextureDepth = 24; // and this?
 
     public RenderTexture GlobeTexture { get; private set; }
 
@@ -21,8 +21,7 @@ public class GlobeRenderTextureSetup : MonoBehaviour
 
     void Start()
     {
-        // Assign in Start — targetTexture can be set on an inactive Camera without issue,
-        // and Start runs after all Awake calls, so references are guaranteed to exist.
+        ResizeTexture(1280,720); // Resized the texture to a 16:9 resolution, no image warping seen now.
         ApplyTexture();
     }
 
