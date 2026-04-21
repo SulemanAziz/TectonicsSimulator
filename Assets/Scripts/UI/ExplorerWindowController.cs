@@ -46,7 +46,7 @@ public class ExplorerWindowController : MonoBehaviour
 
     [Header("Zoom Settings")]
     public float zoomStep = 5f;
-    public float minFov = 10f;
+    public float minFov = 0.1f;
     public float maxFov = 90f;
 
     private float defaultSpeed;

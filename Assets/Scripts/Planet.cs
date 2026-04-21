@@ -51,8 +51,6 @@ public class Planet : MonoBehaviour
     void Start()
     {
         PlateState = ShowPlates;
-        Init();
-        GenerateMesh();
     }
 
     public void Init()

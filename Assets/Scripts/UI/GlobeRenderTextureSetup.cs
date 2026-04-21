@@ -21,7 +21,7 @@ public class GlobeRenderTextureSetup : MonoBehaviour
 
     void Start()
     {
-        ResizeTexture(1280,720); // Resized the texture to a 16:9 resolution, no image warping seen now.
+        ResizeTexture(1920,1080); // Resized the texture to a 16:9 resolution, no image warping seen now.
         ApplyTexture();
     }
 
