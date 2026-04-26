@@ -21,7 +21,10 @@ public class Planet : MonoBehaviour
     public Texture2D OceanheightMap;
     public Texture2D TerrainheightMap;
     public Texture2D ColorMap;
-    private Dictionary<string, List<float[]>> PlateMap;
+    
+    // Core Simulation Data Structures (Replaces raw PlateMap)
+    public SimulationGrid Grid { get; private set; }
+    public GridInitializer Initializer { get; private set; }
 
     [Range(0f, 1f)]
     public float OceanElevation = 0.1f;
@@ -34,15 +37,15 @@ public class Planet : MonoBehaviour
 
     void OnValidate()
     {
+        // Allow the user to toggle plates via Inspector whether playing or not
+        if (ShowPlates != PlateState)
+        {
+            PlateState = ShowPlates;
+            TogglePlateRendering(PlateState);
+        }
+
         if (!Application.isPlaying) 
         {
-            if (ShowPlates != PlateState)
-            {
-                PlateState = ShowPlates;
-                TogglePlateRendering(PlateState);
-                return;
-            }
-
             Init();
             GenerateMesh();
         }
@@ -51,6 +54,10 @@ public class Planet : MonoBehaviour
     void Start()
     {
         PlateState = ShowPlates;
+        
+        // Ensure everything builds when we hit Play!
+        Init();
+        GenerateMesh();
     }
 
     public void Init()
@@ -60,7 +67,13 @@ public class Planet : MonoBehaviour
         if (TerrainheightMap == null) TerrainheightMap = Resources.Load<Texture2D>("TopoHeight");
         if (ColorMap == null) ColorMap = Resources.Load<Texture2D>("ColorMap");
 
-        if(PlateMap == null) PlateMap = Mapping.Map(currentDataFile);
+        // Initialize our new Simulation Grid only once, and ONLY when playing!
+        if (Initializer == null) Initializer = new GridInitializer();
+        if (Grid == null && Application.isPlaying) 
+        {
+            var rawPlateData = Mapping.Map(currentDataFile);
+            Grid = Initializer.Initialize(rawPlateData, PlatePrecisionFactor);
+        }
         if (meshFilters == null || meshFilters.Length == 0) meshFilters = new MeshFilter[6];
         terrainFaces = new TerrainFaces[6];
         UnityEngine.Vector3[] directions = { UnityEngine.Vector3.up, UnityEngine.Vector3.down, UnityEngine.Vector3.left, UnityEngine.Vector3.right, UnityEngine.Vector3.forward, UnityEngine.Vector3.back };
@@ -83,7 +96,8 @@ public class Planet : MonoBehaviour
                 meshFilters[i].sharedMesh = new Mesh();
             }
 
-            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, TerrainheightMap, ColorMap, PlateMap, PlatePrecisionFactor, PlateToleranceDegrees, OceanElevation, TopographyElevation);
+            // Pass the Grid and PlateRegistry to TerrainFaces instead of the raw PlateMap
+            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, TerrainheightMap, ColorMap, Grid, Initializer.PlateRegistry, PlatePrecisionFactor, PlateToleranceDegrees, OceanElevation, TopographyElevation);
         }
     }
 
@@ -112,13 +126,20 @@ public class Planet : MonoBehaviour
     public void LoadGeologicalData(string filename)
     {
         currentDataFile = filename;
-        PlateMap = Mapping.Map(currentDataFile);
+        if (Initializer == null) Initializer = new GridInitializer();
+        var rawPlateData = Mapping.Map(currentDataFile);
+        
+        // Only do the heavy fill if we are playing to avoid editor freezes
+        if (Application.isPlaying) 
+        {
+            Grid = Initializer.Initialize(rawPlateData, PlatePrecisionFactor);
+        }
 
         if (terrainFaces != null)
         {
             foreach (TerrainFaces face in terrainFaces)
             {
-                if (face != null) face.UpdatePlateData(PlateMap);
+                if (face != null) face.UpdateSimulationData(Grid, Initializer.PlateRegistry);
             }
         }
     }
