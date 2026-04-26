@@ -84,7 +84,6 @@ public class ExplorerWindowController : MonoBehaviour
         defaultOceanElev  = planet.OceanElevation;
         defaultTopoElev   = planet.TopographyElevation;
         defaultPrecision  = planet.GridResolutionPerDegree;
-        defaultTolerance  = planet.PlateToleranceDegrees;
         defaultTilt       = globeRotation.tiltAngle;
     }
 
@@ -99,7 +98,6 @@ public class ExplorerWindowController : MonoBehaviour
         SetSlider(oceanElevSlider,  oceanElevValueLabel,  planet.OceanElevation,         false);
         SetSlider(topoElevSlider,   topoElevValueLabel,   planet.TopographyElevation,    false);
         SetSlider(precisionSlider,  precisionValueLabel,  planet.GridResolutionPerDegree,   true);
-        SetSlider(toleranceSlider,  toleranceValueLabel,  planet.PlateToleranceDegrees,  false);
         SetSlider(tiltSlider,       tiltValueLabel,       globeRotation.tiltAngle,       false);
     }
 
@@ -124,7 +122,6 @@ public class ExplorerWindowController : MonoBehaviour
         BindSlider(oceanElevSlider,  oceanElevValueLabel,  false, v => planet.OceanElevation = v,          rebuild: true);
         BindSlider(topoElevSlider,   topoElevValueLabel,   false, v => planet.TopographyElevation = v,     rebuild: true);
         BindSlider(precisionSlider,  precisionValueLabel,  true,  v => planet.GridResolutionPerDegree = Mathf.RoundToInt(v), rebuild: true);
-        BindSlider(toleranceSlider,  toleranceValueLabel,  false, v => planet.PlateToleranceDegrees = v,   rebuild: true);
         BindSlider(tiltSlider,       tiltValueLabel,       false, v => globeRotation.tiltAngle = v);
 
         defaultSettingsButton?.onClick.AddListener(OnDefaultSettings);
@@ -187,7 +184,6 @@ public class ExplorerWindowController : MonoBehaviour
         planet.OceanElevation         = defaultOceanElev;
         planet.TopographyElevation    = defaultTopoElev;
         planet.GridResolutionPerDegree   = defaultPrecision;
-        planet.PlateToleranceDegrees  = defaultTolerance;
         globeRotation.tiltAngle       = defaultTilt;
 
         SetSlider(speedSlider,      speedValueLabel,      defaultSpeed,     true);
@@ -195,7 +191,6 @@ public class ExplorerWindowController : MonoBehaviour
         SetSlider(oceanElevSlider,  oceanElevValueLabel,  defaultOceanElev,  false);
         SetSlider(topoElevSlider,   topoElevValueLabel,   defaultTopoElev,   false);
         SetSlider(precisionSlider,  precisionValueLabel,  defaultPrecision,  true);
-        SetSlider(toleranceSlider,  toleranceValueLabel,  defaultTolerance,  false);
         SetSlider(tiltSlider,       tiltValueLabel,       defaultTilt,       false);
         RebuildPlanetMesh();
     }
