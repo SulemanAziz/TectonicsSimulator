@@ -8,11 +8,8 @@ public class Planet : MonoBehaviour
     [Range(2, 1024)]
     public int resolution = 128;
 
-    [Range (5, 50)]
-    public int PlatePrecisionFactor = 10;
-
-    [Range (0.1f, 10f)]
-    public float PlateToleranceDegrees = 0.3f;
+    [Range(5, 50)]
+    public int GridResolutionPerDegree = 10;
     public bool ShowPlates = false;
     public string currentDataFile = "TectonicPlates";
     // Track the previous state of the toggle for smart validation
@@ -71,8 +68,15 @@ public class Planet : MonoBehaviour
         if (Initializer == null) Initializer = new GridInitializer();
         if (Grid == null && Application.isPlaying) 
         {
+            long expectedCells = (360L * GridResolutionPerDegree) * (180L * GridResolutionPerDegree);
+            if (expectedCells > 20_000_000)
+            {
+                Debug.LogError($"[Planet] Aborting Grid Initialization! Requested GridResolutionPerDegree of {GridResolutionPerDegree} would create {expectedCells:N0} cells, exceeding the safe limit of 20,000,000. Please lower the resolution.");
+                return;
+            }
+
             var rawPlateData = Mapping.Map(currentDataFile);
-            Grid = Initializer.Initialize(rawPlateData, PlatePrecisionFactor);
+            Grid = Initializer.Initialize(rawPlateData, GridResolutionPerDegree);
         }
         if (meshFilters == null || meshFilters.Length == 0) meshFilters = new MeshFilter[6];
         terrainFaces = new TerrainFaces[6];
@@ -97,7 +101,7 @@ public class Planet : MonoBehaviour
             }
 
             // Pass the Grid and PlateRegistry to TerrainFaces instead of the raw PlateMap
-            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, TerrainheightMap, ColorMap, Grid, Initializer.PlateRegistry, PlatePrecisionFactor, PlateToleranceDegrees, OceanElevation, TopographyElevation);
+            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, TerrainheightMap, ColorMap, Grid, Initializer.PlateRegistry);
         }
     }
 
@@ -132,7 +136,14 @@ public class Planet : MonoBehaviour
         // Only do the heavy fill if we are playing to avoid editor freezes
         if (Application.isPlaying) 
         {
-            Grid = Initializer.Initialize(rawPlateData, PlatePrecisionFactor);
+            long expectedCells = (360L * GridResolutionPerDegree) * (180L * GridResolutionPerDegree);
+            if (expectedCells > 20_000_000)
+            {
+                Debug.LogError($"[Planet] Aborting Data Load! Requested GridResolutionPerDegree of {GridResolutionPerDegree} would create {expectedCells:N0} cells, exceeding the safe limit of 20,000,000. Please lower the resolution.");
+                return;
+            }
+
+            Grid = Initializer.Initialize(rawPlateData, GridResolutionPerDegree);
         }
 
         if (terrainFaces != null)
