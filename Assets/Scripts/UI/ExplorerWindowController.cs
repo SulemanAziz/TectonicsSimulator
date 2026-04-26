@@ -83,7 +83,7 @@ public class ExplorerWindowController : MonoBehaviour
         defaultResolution = planet.resolution;
         defaultOceanElev  = planet.OceanElevation;
         defaultTopoElev   = planet.TopographyElevation;
-        defaultPrecision  = planet.PlatePrecisionFactor;
+        defaultPrecision  = planet.GridResolutionPerDegree;
         defaultTolerance  = planet.PlateToleranceDegrees;
         defaultTilt       = globeRotation.tiltAngle;
     }
@@ -98,7 +98,7 @@ public class ExplorerWindowController : MonoBehaviour
         SetSlider(resolutionSlider, resolutionValueLabel, planet.resolution,             true);
         SetSlider(oceanElevSlider,  oceanElevValueLabel,  planet.OceanElevation,         false);
         SetSlider(topoElevSlider,   topoElevValueLabel,   planet.TopographyElevation,    false);
-        SetSlider(precisionSlider,  precisionValueLabel,  planet.PlatePrecisionFactor,   true);
+        SetSlider(precisionSlider,  precisionValueLabel,  planet.GridResolutionPerDegree,   true);
         SetSlider(toleranceSlider,  toleranceValueLabel,  planet.PlateToleranceDegrees,  false);
         SetSlider(tiltSlider,       tiltValueLabel,       globeRotation.tiltAngle,       false);
     }
@@ -123,7 +123,7 @@ public class ExplorerWindowController : MonoBehaviour
         BindSlider(resolutionSlider, resolutionValueLabel, true,  v => planet.resolution = Mathf.RoundToInt(v), rebuild: true);
         BindSlider(oceanElevSlider,  oceanElevValueLabel,  false, v => planet.OceanElevation = v,          rebuild: true);
         BindSlider(topoElevSlider,   topoElevValueLabel,   false, v => planet.TopographyElevation = v,     rebuild: true);
-        BindSlider(precisionSlider,  precisionValueLabel,  true,  v => planet.PlatePrecisionFactor = Mathf.RoundToInt(v), rebuild: true);
+        BindSlider(precisionSlider,  precisionValueLabel,  true,  v => planet.GridResolutionPerDegree = Mathf.RoundToInt(v), rebuild: true);
         BindSlider(toleranceSlider,  toleranceValueLabel,  false, v => planet.PlateToleranceDegrees = v,   rebuild: true);
         BindSlider(tiltSlider,       tiltValueLabel,       false, v => globeRotation.tiltAngle = v);
 
@@ -186,7 +186,7 @@ public class ExplorerWindowController : MonoBehaviour
         planet.resolution             = defaultResolution;
         planet.OceanElevation         = defaultOceanElev;
         planet.TopographyElevation    = defaultTopoElev;
-        planet.PlatePrecisionFactor   = defaultPrecision;
+        planet.GridResolutionPerDegree   = defaultPrecision;
         planet.PlateToleranceDegrees  = defaultTolerance;
         globeRotation.tiltAngle       = defaultTilt;
 

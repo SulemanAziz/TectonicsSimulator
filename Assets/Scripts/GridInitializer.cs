@@ -25,7 +25,16 @@ public class GridInitializer
 
     public SimulationGrid Initialize(Dictionary<string, List<float[]>> rawPlateMap, int resolutionPerDegree)
     {
+        // 1. CLEAR STATE to prevent errors on re-initialization
+        PlateRegistry.Clear();
+        PlateBoundingBoxes.Clear();
+        UnwrappedPlateMap.Clear();
+
         SimulationGrid grid = new SimulationGrid(resolutionPerDegree);
+
+        // 2. SAFEGUARD against empty maps
+        if (rawPlateMap == null || rawPlateMap.Count == 0) return grid;
+
         BuildPlateRegistry(rawPlateMap);
         FillGrid(grid);
         ValidateGrid(grid);
@@ -129,25 +138,14 @@ public class GridInitializer
                     float[] bounds = PlateBoundingBoxes[plateId];
                     List<float[]> polygon = UnwrappedPlateMap[plateId];
 
-                    // Because plates might be unwrapped to e.g. [180 to 360] or [-360 to -180],
-                    // we must test our point and its virtual "clones" to see if they fall into the unwrapped space.
-                    float[] testLons = { lonDeg, lonDeg - 360f, lonDeg + 360f };
-                    
-                    bool found = false;
-                    foreach (float tLon in testLons)
+                    // Zero-allocation inline check for standard and unwrapped coordinates
+                    if ((lonDeg >= bounds[0] && lonDeg <= bounds[1] && latDeg >= bounds[2] && latDeg <= bounds[3] && IsPointInPolygon(lonDeg, latDeg, polygon)) ||
+                        (lonDeg - 360f >= bounds[0] && lonDeg - 360f <= bounds[1] && latDeg >= bounds[2] && latDeg <= bounds[3] && IsPointInPolygon(lonDeg - 360f, latDeg, polygon)) ||
+                        (lonDeg + 360f >= bounds[0] && lonDeg + 360f <= bounds[1] && latDeg >= bounds[2] && latDeg <= bounds[3] && IsPointInPolygon(lonDeg + 360f, latDeg, polygon)))
                     {
-                        if (tLon >= bounds[0] && tLon <= bounds[1] && latDeg >= bounds[2] && latDeg <= bounds[3])
-                        {
-                            if (IsPointInPolygon(tLon, latDeg, polygon))
-                            {
-                                cell.PlateId = plateId;
-                                found = true;
-                                break; 
-                            }
-                        }
+                        cell.PlateId = plateId;
+                        break; // Already assigned this cell, skip remaining plates
                     }
-
-                    if (found) break; // Already assigned this cell, skip remaining plates
                 }
                 
                 grid.SetCell(x, y, cell);

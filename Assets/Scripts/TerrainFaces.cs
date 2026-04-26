@@ -16,9 +16,6 @@ public class TerrainFaces
     Texture2D ColorMap;
     public SimulationGrid Grid;
     public Dictionary<int, TectonicPlate> PlateRegistry;
-    Dictionary<long, List<int>> vertexSpatialHash; // Retained for backwards compatibility if needed
-    int PlatePrecisionFactor;
-    float PlateToleranceDegrees; 
     float OceanheightMultiplier;
     float HeightMultiplier;
     Color[] baseColors;
@@ -38,7 +35,7 @@ public class TerrainFaces
         return new UnityEngine.Vector3(x,y,z);
     }
     
-    public TerrainFaces(Mesh m, int res, UnityEngine.Vector3 up, Texture2D Oceanheightmap, Texture2D TerrainheightMap = null, Texture2D ColorMap = null, SimulationGrid grid = null, Dictionary<int, TectonicPlate> plateRegistry = null, int PlatePrecisionFactor = 10, float PlateToleranceDegrees = 0.5f , float OceanheightMultiplier = 0f, float HeightMultiplier = 0f)
+    public TerrainFaces(Mesh m, int res, UnityEngine.Vector3 up, Texture2D Oceanheightmap, Texture2D TerrainheightMap = null, Texture2D ColorMap = null, SimulationGrid grid = null, Dictionary<int, TectonicPlate> plateRegistry = null, float OceanheightMultiplier = 0f, float HeightMultiplier = 0f)
     {
         mesh = m;
         resolution = res;
@@ -55,9 +52,6 @@ public class TerrainFaces
 
         this.OceanheightMultiplier = OceanheightMultiplier;
         this.HeightMultiplier = HeightMultiplier;
-
-        this.PlatePrecisionFactor = PlatePrecisionFactor;
-        this.PlateToleranceDegrees = PlateToleranceDegrees;
     }
 
     public void ConstructMesh()
@@ -65,7 +59,6 @@ public class TerrainFaces
         UnityEngine.Vector3[] vertices = new UnityEngine.Vector3[resolution * resolution];
         baseColors = new Color[resolution * resolution];
         plateColors = new Color[resolution * resolution];        
-        vertexSpatialHash = new Dictionary<long, List<int>>();
         
         int[] triangles = new int[(resolution - 1) * (resolution - 1) * 6];
         int triIndex = 0;
@@ -95,15 +88,6 @@ public class TerrainFaces
 
                     vertices[i] = pointOnUnitSphere * (Oceanradius + Terrainradius);
 
-                    int lonKey = Mathf.RoundToInt(coord.longitude * Mathf.Rad2Deg * PlatePrecisionFactor);
-                    int latKey = Mathf.RoundToInt(coord.latitude * Mathf.Rad2Deg * PlatePrecisionFactor);
-                    long key = ((long)lonKey << 32) | (uint)latKey;
-                    
-                    if (!vertexSpatialHash.ContainsKey(key)) {
-                        vertexSpatialHash[key] = new List<int>();
-                    }
-                    vertexSpatialHash[key].Add(i);
-                    
                     // Read color from the colormap
                     baseColors[i] = ColorMap.GetPixelBilinear(u,v);
                     plateColors[i] = baseColors[i];
