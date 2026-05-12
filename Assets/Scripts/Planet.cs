@@ -101,7 +101,8 @@ public class Planet : MonoBehaviour
             }
 
             // Pass the Grid and PlateRegistry to TerrainFaces instead of the raw PlateMap
-            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, TerrainheightMap, ColorMap, Grid, Initializer.PlateRegistry);
+            // BUGFIX: We also explicitly pass OceanElevation and TopographyElevation here so that the UI sliders correctly displace the terrain mesh heightmaps.
+            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, TerrainheightMap, ColorMap, Grid, Initializer.PlateRegistry, OceanElevation, TopographyElevation);
         }
     }
 
