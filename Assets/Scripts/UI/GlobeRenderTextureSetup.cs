@@ -11,6 +11,9 @@ public class GlobeRenderTextureSetup : MonoBehaviour
 
     public RenderTexture GlobeTexture { get; private set; }
 
+    private int lastWidth;
+    private int lastHeight;
+
     void Awake()
     {
         // Create texture early so it exists before any other script reads it
@@ -21,8 +24,14 @@ public class GlobeRenderTextureSetup : MonoBehaviour
 
     void Start()
     {
-        ResizeTexture(1920,1080); // Resized the texture to a 16:9 resolution, no image warping seen now.
+        ResizeToScreen();
         ApplyTexture();
+    }
+
+    void Update()
+    {
+        // Cheap guard — only resizes when Screen dimensions actually change.
+        ResizeToScreen();
     }
 
     /// <summary>Re-assigns the RenderTexture to the camera and viewport image. Safe to call at any time.</summary>
@@ -35,7 +44,7 @@ public class GlobeRenderTextureSetup : MonoBehaviour
             globeViewportImage.texture = GlobeTexture;
     }
 
-    /// <summary>Resizes the render texture to new dimensions.</summary>
+    /// <summary>Resizes the render texture to match the current screen dimensions and corrects the camera aspect ratio.</summary>
     public void ResizeTexture(int width, int height)
     {
         if (GlobeTexture == null) return;
@@ -52,5 +61,29 @@ public class GlobeRenderTextureSetup : MonoBehaviour
             GlobeTexture.Release();
             Destroy(GlobeTexture);
         }
+    }
+
+    // ── Internal helpers ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Resizes the RenderTexture and corrects camera.aspect to match the
+    /// current screen size. No-ops when dimensions have not changed.
+    /// </summary>
+    private void ResizeToScreen()
+    {
+        int w = Screen.width;
+        int h = Screen.height;
+
+        if (w == lastWidth && h == lastHeight) return;
+
+        lastWidth  = w;
+        lastHeight = h;
+
+        ResizeTexture(w, h);
+
+        if (globeCamera != null)
+            globeCamera.aspect = (float)w / (float)h;
+
+        ApplyTexture();
     }
 }
