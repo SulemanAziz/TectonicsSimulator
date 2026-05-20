@@ -9,7 +9,17 @@ public class GlobeRotation : MonoBehaviour
 
     [Header("Earth Settings")]
     [Tooltip("Earth's axial tilt is approx 23.5 degrees")]
-    public float tiltAngle = 23.5f;
+    [SerializeField] private float _tiltAngle = 23.5f;
+
+    /// <summary>
+    /// Axial tilt in degrees. Setting this property automatically recalculates
+    /// the rotation axis so changes take effect immediately.
+    /// </summary>
+    public float tiltAngle
+    {
+        get => _tiltAngle;
+        set { _tiltAngle = value; CalculateAxis(); }
+    }
     
     [Header("Simulation Speed")]
     [Range(1, 100)]
@@ -29,12 +39,10 @@ public class GlobeRotation : MonoBehaviour
         CalculateAxis();
     }
 
-    void CalculateAxis()
+    private void CalculateAxis()
     {
-        // 1. Start with a standard "Up" vector (0, 1, 0)
-        // 2. Tilt it by 23.5 degrees to the left/right (Z-axis rotation)
-        // Quaternion.Euler(x, y, z) creates a rotation
-        realWorldAxis = Quaternion.Euler(0, 0, -tiltAngle) * Vector3.up;
+        // Start with a standard "Up" vector (0, 1, 0) and tilt it around Z.
+        realWorldAxis = Quaternion.Euler(0, 0, -_tiltAngle) * Vector3.up;
     }
 
     void Update()

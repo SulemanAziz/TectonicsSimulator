@@ -18,23 +18,18 @@ public class ExplorerWindowController : MonoBehaviour
     [Header("Left Panel — Sliders")]
     public Slider speedSlider;
     public Slider resolutionSlider;
-    public Slider oceanElevSlider;
-    public Slider topoElevSlider;
-    public Slider precisionSlider;
-    public Slider toleranceSlider;
     public Slider tiltSlider;
 
     [Header("Left Panel — Value Labels")]
     public Text speedValueLabel;
     public Text resolutionValueLabel;
-    public Text oceanElevValueLabel;
-    public Text topoElevValueLabel;
-    public Text precisionValueLabel;
-    public Text toleranceValueLabel;
     public Text tiltValueLabel;
 
     [Header("Left Panel — Buttons")]
     public Button defaultSettingsButton;
+
+    [Header("Advanced Settings")]
+    public AdvancedSettingsPanelController advancedSettingsPanel;
 
     [Header("Bottom Bar")]
     public Button zoomInButton;
@@ -50,12 +45,14 @@ public class ExplorerWindowController : MonoBehaviour
     public float maxFov = 90f;
 
     private float defaultSpeed;
-    private int defaultResolution;
+    private int   defaultResolution;
+    private float defaultTilt;
+
+    // Advanced settings defaults — captured once at startup before any Apply
     private float defaultOceanElev;
     private float defaultTopoElev;
-    private int defaultPrecision;
+    private int   defaultPrecision;
     private float defaultTolerance;
-    private float defaultTilt;
 
     private Vector3 defaultCamPosition;
     private Quaternion defaultCamRotation;
@@ -81,11 +78,12 @@ public class ExplorerWindowController : MonoBehaviour
         if (planet == null || globeRotation == null) return;
         defaultSpeed      = globeRotation.Speed;
         defaultResolution = planet.resolution;
+        defaultTilt       = globeRotation.tiltAngle;
+
         defaultOceanElev  = planet.OceanElevation;
         defaultTopoElev   = planet.TopographyElevation;
         defaultPrecision  = planet.PlatePrecisionFactor;
         defaultTolerance  = planet.PlateToleranceDegrees;
-        defaultTilt       = globeRotation.tiltAngle;
     }
 
     private void InitializeControlValues()
@@ -94,13 +92,9 @@ public class ExplorerWindowController : MonoBehaviour
         rotateToggle?.SetIsOnWithoutNotify(globeRotation.EnableRotation);
         platesToggle?.SetIsOnWithoutNotify(planet.ShowPlates);
 
-        SetSlider(speedSlider,      speedValueLabel,      globeRotation.Speed,          true);
-        SetSlider(resolutionSlider, resolutionValueLabel, planet.resolution,             true);
-        SetSlider(oceanElevSlider,  oceanElevValueLabel,  planet.OceanElevation,         false);
-        SetSlider(topoElevSlider,   topoElevValueLabel,   planet.TopographyElevation,    false);
-        SetSlider(precisionSlider,  precisionValueLabel,  planet.PlatePrecisionFactor,   true);
-        SetSlider(toleranceSlider,  toleranceValueLabel,  planet.PlateToleranceDegrees,  false);
-        SetSlider(tiltSlider,       tiltValueLabel,       globeRotation.tiltAngle,       false);
+        SetSlider(speedSlider,      speedValueLabel,      globeRotation.Speed, true);
+        SetSlider(resolutionSlider, resolutionValueLabel, planet.resolution,   true);
+        SetSlider(tiltSlider,       tiltValueLabel,       globeRotation.tiltAngle, false);
     }
 
     private void SetSlider(Slider slider, Text label, float value, bool wholeNumber)
@@ -121,10 +115,6 @@ public class ExplorerWindowController : MonoBehaviour
 
         BindSlider(speedSlider,      speedValueLabel,      true,  v => globeRotation.Speed = Mathf.RoundToInt(v));
         BindSlider(resolutionSlider, resolutionValueLabel, true,  v => planet.resolution = Mathf.RoundToInt(v), rebuild: true);
-        BindSlider(oceanElevSlider,  oceanElevValueLabel,  false, v => planet.OceanElevation = v,          rebuild: true);
-        BindSlider(topoElevSlider,   topoElevValueLabel,   false, v => planet.TopographyElevation = v,     rebuild: true);
-        BindSlider(precisionSlider,  precisionValueLabel,  true,  v => planet.PlatePrecisionFactor = Mathf.RoundToInt(v), rebuild: true);
-        BindSlider(toleranceSlider,  toleranceValueLabel,  false, v => planet.PlateToleranceDegrees = v,   rebuild: true);
         BindSlider(tiltSlider,       tiltValueLabel,       false, v => globeRotation.tiltAngle = v);
 
         defaultSettingsButton?.onClick.AddListener(OnDefaultSettings);
@@ -182,21 +172,28 @@ public class ExplorerWindowController : MonoBehaviour
     private void OnDefaultSettings()
     {
         if (planet == null || globeRotation == null) return;
-        globeRotation.Speed           = Mathf.RoundToInt(defaultSpeed);
-        planet.resolution             = defaultResolution;
-        planet.OceanElevation         = defaultOceanElev;
-        planet.TopographyElevation    = defaultTopoElev;
-        planet.PlatePrecisionFactor   = defaultPrecision;
-        planet.PlateToleranceDegrees  = defaultTolerance;
-        globeRotation.tiltAngle       = defaultTilt;
+        globeRotation.Speed     = Mathf.RoundToInt(defaultSpeed);
+        planet.resolution       = defaultResolution;
+        globeRotation.tiltAngle = defaultTilt;
 
-        SetSlider(speedSlider,      speedValueLabel,      defaultSpeed,     true);
+        SetSlider(speedSlider,      speedValueLabel,      defaultSpeed,      true);
         SetSlider(resolutionSlider, resolutionValueLabel, defaultResolution, true);
-        SetSlider(oceanElevSlider,  oceanElevValueLabel,  defaultOceanElev,  false);
-        SetSlider(topoElevSlider,   topoElevValueLabel,   defaultTopoElev,   false);
-        SetSlider(precisionSlider,  precisionValueLabel,  defaultPrecision,  true);
-        SetSlider(toleranceSlider,  toleranceValueLabel,  defaultTolerance,  false);
         SetSlider(tiltSlider,       tiltValueLabel,       defaultTilt,       false);
+
+        // Restore planet advanced fields to their captured defaults
+        planet.OceanElevation        = defaultOceanElev;
+        planet.TopographyElevation   = defaultTopoElev;
+        planet.PlatePrecisionFactor  = defaultPrecision;
+        planet.PlateToleranceDegrees = defaultTolerance;
+
+        // Sync the advanced-settings sliders to the restored values
+        advancedSettingsPanel?.ResetToDefaults(
+            defaultOceanElev,
+            defaultTopoElev,
+            defaultPrecision,
+            defaultTolerance
+        );
+
         RebuildPlanetMesh();
     }
 
