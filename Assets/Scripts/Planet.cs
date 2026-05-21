@@ -51,11 +51,9 @@ public class Planet : MonoBehaviour
     void Start()
     {
         PlateState = ShowPlates;
-        Init();
-        GenerateMesh();
     }
 
-    void Init()
+    public void Init()
     {
         // Load Resources heightmap if not already set in inspector
         if (OceanheightMap == null) OceanheightMap = Resources.Load<Texture2D>("Ocean");
@@ -89,7 +87,7 @@ public class Planet : MonoBehaviour
         }
     }
 
-    void GenerateMesh()
+    public void GenerateMesh()
     {
         if (terrainFaces == null) return; 
 
