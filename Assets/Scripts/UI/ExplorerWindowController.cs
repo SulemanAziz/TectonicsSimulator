@@ -223,7 +223,7 @@ public class ExplorerWindowController : MonoBehaviour
         if (globeCamera != null && camPositionLabel != null)
         {
             Vector3 pos = globeCamera.transform.position;
-            camPositionLabel.text = $"Cam: ({pos.x:F1}, {pos.y:F1}, {pos.z:F1})";
+            camPositionLabel.text = $"Cam: ({pos.x}, {pos.y}, {pos.z})";
         }
     }
 }

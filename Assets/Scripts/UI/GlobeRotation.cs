@@ -7,9 +7,11 @@ public class GlobeRotation : MonoBehaviour
     [Header("Controls")]
     public bool EnableRotation = false;
 
-    [Header("Earth Settings")]
-    [Tooltip("Earth's axial tilt is approx 23.5 degrees")]
-    [SerializeField] private float _tiltAngle = 23.5f;
+    [Header("Rotation Tilt")]
+
+    [SerializeField]
+    [Range(0,359)] 
+    private float _tiltAngle = 23.5f;
 
     /// <summary>
     /// Axial tilt in degrees. Setting this property automatically recalculates
@@ -21,7 +23,7 @@ public class GlobeRotation : MonoBehaviour
         set { _tiltAngle = value; CalculateAxis(); }
     }
     
-    [Header("Simulation Speed")]
+    [Header("Rotation Speed")]
     [Range(1, 100)]
     public int Speed = 20;
 
@@ -39,10 +41,18 @@ public class GlobeRotation : MonoBehaviour
         CalculateAxis();
     }
 
+    void OnDrawGizmosSelected()
+    {
+        if (EnableRotation && planetScript != null)
+        {
+            RotateGlobe(planetScript, -Speed, realWorldAxis);
+        }
+    }
+
     private void CalculateAxis()
     {
         // Start with a standard "Up" vector (0, 1, 0) and tilt it around Z.
-        realWorldAxis = Quaternion.Euler(0, 0, -_tiltAngle) * Vector3.up;
+        realWorldAxis = Quaternion.Euler(0, 0, _tiltAngle) * Vector3.up;
     }
 
     void Update()
@@ -62,5 +72,10 @@ public class GlobeRotation : MonoBehaviour
             // We explicitly use Space.World to rotate around the calculated tilt
             P.transform.Rotate(rotAxis * speed * Time.deltaTime, Space.World);
         }
+    }
+
+    void ToggleRotation()
+    {
+        EnableRotation = !EnableRotation;
     }
 }
