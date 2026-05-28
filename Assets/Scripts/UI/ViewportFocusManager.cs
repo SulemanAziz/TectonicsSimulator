@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 public class ViewportFocusManager : MonoBehaviour
 {
-    public FlyCamera flyCamera;
+    public GameObject flyCamera;
 
     [Tooltip("The Explore Globe start button — shown when not exploring.")]
     public Button exploreGlobeButton;
@@ -15,9 +15,6 @@ public class ViewportFocusManager : MonoBehaviour
 
     void Start()
     {
-        if (flyCamera != null)
-            flyCamera.enabled = false;
-
         RefreshButtons();
     }
 
@@ -26,7 +23,7 @@ public class ViewportFocusManager : MonoBehaviour
     {
         // Only auto-enable if actively engaged in exploring
         if (isExploring && flyCamera != null)
-            flyCamera.enabled = true;
+            flyCamera.SetActive(true);
     }
 
     /// <summary>Called when pointer exits the globe viewport area.</summary>
@@ -34,14 +31,15 @@ public class ViewportFocusManager : MonoBehaviour
     {
         // Only disable if not in explicit explore mode
         if (!isExploring && flyCamera != null)
-            flyCamera.enabled = false;
+            flyCamera.SetActive(false);
     }
 
     /// <summary>Called by the Explore Globe button. Activates explore mode and keeps FlyCamera on.</summary>
     public void OnExploreGlobeClicked()
     {
         isExploring = true;
-        if (flyCamera != null) flyCamera.enabled = true;
+        if (flyCamera != null) flyCamera.SetActive(true);
+        flyCamera.SetActive(true);
         RefreshButtons();
     }
 
@@ -55,7 +53,7 @@ public class ViewportFocusManager : MonoBehaviour
     public void StopExploring()
     {
         isExploring = false;
-        if (flyCamera != null) flyCamera.enabled = false;
+        if (flyCamera != null) flyCamera.SetActive(false);
         RefreshButtons();
     }
 

@@ -109,8 +109,8 @@ public class ExplorerWindowController : MonoBehaviour
         rotateToggle?.onValueChanged.AddListener(v => globeRotation.EnableRotation = v);
         platesToggle?.onValueChanged.AddListener(v =>
         {
-            planet.ShowPlates = v;
             planet.TogglePlateRendering(v);
+            planet.ShowPlates = v;
         });
 
         BindSlider(speedSlider,      speedValueLabel,      true,  v => globeRotation.Speed = Mathf.RoundToInt(v));
@@ -223,7 +223,7 @@ public class ExplorerWindowController : MonoBehaviour
         if (globeCamera != null && camPositionLabel != null)
         {
             Vector3 pos = globeCamera.transform.position;
-            camPositionLabel.text = $"Cam: ({pos.x}, {pos.y}, {pos.z})";
+            camPositionLabel.text = $"Cam Position: ({pos.x}, {pos.y}, {pos.z})";
         }
     }
 }
