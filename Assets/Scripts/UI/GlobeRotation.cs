@@ -74,7 +74,7 @@ public class GlobeRotation : MonoBehaviour
         }
     }
 
-    void ToggleRotation()
+    public void ToggleRotation() // This does work
     {
         EnableRotation = !EnableRotation;
     }

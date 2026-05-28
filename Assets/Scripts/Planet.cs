@@ -32,25 +32,23 @@ public class Planet : MonoBehaviour
     MeshFilter[] meshFilters;
     TerrainFaces[] terrainFaces;
 
+    
     void OnValidate()
     {
-        if (!Application.isPlaying) 
+        if (ShowPlates != PlateState)
         {
-            if (ShowPlates != PlateState)
-            {
-                PlateState = ShowPlates;
-                TogglePlateRendering(PlateState);
-                return;
-            }
-
-            Init();
-            GenerateMesh();
+            PlateState = ShowPlates;
+            TogglePlateRendering(PlateState);
         }
+
+        Init();
+        GenerateMesh();
     }
 
     void Start()
     {
-        PlateState = ShowPlates;
+        Init();
+        GenerateMesh();
     }
 
     public void Init()
