@@ -51,6 +51,13 @@ public class Planet : MonoBehaviour
         GenerateMesh();
     }
 
+    public void ChangeColorTexture(Texture2D textureselection)
+    {
+        ColorMap = textureselection;
+        Init();
+        GenerateMesh();
+    }
+
     public void Init()
     {
         // Load Resources heightmap if not already set in inspector
