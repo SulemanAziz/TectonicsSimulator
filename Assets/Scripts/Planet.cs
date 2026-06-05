@@ -32,6 +32,7 @@ public class Planet : MonoBehaviour
     MeshFilter[] meshFilters;
     TerrainFaces[] terrainFaces;
 
+    
     void OnValidate()
     {
         // Allow the user to toggle plates via Inspector whether playing or not
@@ -46,13 +47,20 @@ public class Planet : MonoBehaviour
             Init();
             GenerateMesh();
         }
+
+        Init();
+        GenerateMesh();
     }
 
     void Start()
     {
-        PlateState = ShowPlates;
-        
-        // Ensure everything builds when we hit Play!
+        Init();
+        GenerateMesh();
+    }
+
+    public void ChangeColorTexture(Texture2D textureselection)
+    {
+        ColorMap = textureselection;
         Init();
         GenerateMesh();
     }
