@@ -40,7 +40,8 @@ public class AdvancedSettingsPanelController : MonoBehaviour
         {
             defaultOceanElev  = planet.OceanElevation;
             defaultTopoElev   = planet.TopographyElevation;
-            defaultPrecision  = planet.PlatePrecisionFactor;
+            // Refactored: GridResolutionPerDegree replaces PlatePrecisionFactor
+            defaultPrecision  = planet.GridResolutionPerDegree;
             defaultTolerance  = planet.PlateToleranceDegrees;
         }
     }
@@ -88,7 +89,8 @@ public class AdvancedSettingsPanelController : MonoBehaviour
 
         planet.OceanElevation        = oceanElevSlider  != null ? oceanElevSlider.value  : defaultOceanElev;
         planet.TopographyElevation   = topoElevSlider   != null ? topoElevSlider.value   : defaultTopoElev;
-        planet.PlatePrecisionFactor  = precisionSlider  != null ? Mathf.RoundToInt(precisionSlider.value) : defaultPrecision;
+        // Refactored: GridResolutionPerDegree replaces PlatePrecisionFactor
+        planet.GridResolutionPerDegree = precisionSlider != null ? Mathf.RoundToInt(precisionSlider.value) : defaultPrecision;
         planet.PlateToleranceDegrees = toleranceSlider  != null ? toleranceSlider.value  : defaultTolerance;
 
         planet.Init();
@@ -113,7 +115,8 @@ public class AdvancedSettingsPanelController : MonoBehaviour
 
         planet.OceanElevation        = ocean;
         planet.TopographyElevation   = topo;
-        planet.PlatePrecisionFactor  = precision;
+        // Refactored: GridResolutionPerDegree replaces PlatePrecisionFactor
+        planet.GridResolutionPerDegree = precision;
         planet.PlateToleranceDegrees = tolerance;
     }
 
@@ -124,7 +127,7 @@ public class AdvancedSettingsPanelController : MonoBehaviour
         if (planet == null) return;
         SetSlider(oceanElevSlider,  oceanElevValueLabel,  planet.OceanElevation,       false);
         SetSlider(topoElevSlider,   topoElevValueLabel,   planet.TopographyElevation,  false);
-        SetSlider(precisionSlider,  precisionValueLabel,  planet.PlatePrecisionFactor, true);
+        SetSlider(precisionSlider,  precisionValueLabel,  planet.GridResolutionPerDegree, true);
         SetSlider(toleranceSlider,  toleranceValueLabel,  planet.PlateToleranceDegrees, false);
     }
 
