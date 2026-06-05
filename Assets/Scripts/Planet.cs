@@ -23,8 +23,7 @@ public class Planet : MonoBehaviour
     public SimulationGrid Grid { get; private set; }
     public GridInitializer Initializer { get; private set; }
 
-    // Compatibility field retained for UI references. No longer used in the decoupled grid simulation.
-    public float PlateToleranceDegrees = 1.0f;
+
 
     [Range(0f, 1f)]
     public float OceanElevation = 0.1f;

@@ -52,7 +52,6 @@ public class ExplorerWindowController : MonoBehaviour
     private float defaultOceanElev;
     private float defaultTopoElev;
     private int   defaultPrecision;
-    private float defaultTolerance;
 
     private Vector3 defaultCamPosition;
     private Quaternion defaultCamRotation;
@@ -173,30 +172,22 @@ public class ExplorerWindowController : MonoBehaviour
     private void OnDefaultSettings()
     {
         if (planet == null || globeRotation == null) return;
-        globeRotation.Speed           = Mathf.RoundToInt(defaultSpeed);
-        planet.resolution             = defaultResolution;
-        planet.OceanElevation         = defaultOceanElev;
-        planet.TopographyElevation    = defaultTopoElev;
+        globeRotation.Speed              = Mathf.RoundToInt(defaultSpeed);
+        planet.resolution                = defaultResolution;
+        planet.OceanElevation            = defaultOceanElev;
+        planet.TopographyElevation       = defaultTopoElev;
         planet.GridResolutionPerDegree   = defaultPrecision;
-        globeRotation.tiltAngle       = defaultTilt;
+        globeRotation.tiltAngle          = defaultTilt;
 
         SetSlider(speedSlider,      speedValueLabel,      defaultSpeed,     true);
         SetSlider(resolutionSlider, resolutionValueLabel, defaultResolution, true);
         SetSlider(tiltSlider,       tiltValueLabel,       defaultTilt,       false);
 
-        // Restore planet advanced fields to their captured defaults
-        planet.OceanElevation        = defaultOceanElev;
-        planet.TopographyElevation   = defaultTopoElev;
-        // Refactored to use GridResolutionPerDegree instead of PlatePrecisionFactor
-        planet.GridResolutionPerDegree = defaultPrecision;
-        planet.PlateToleranceDegrees = defaultTolerance;
-
         // Sync the advanced-settings sliders to the restored values
         advancedSettingsPanel?.ResetToDefaults(
             defaultOceanElev,
             defaultTopoElev,
-            defaultPrecision,
-            defaultTolerance
+            defaultPrecision
         );
 
         RebuildPlanetMesh();
