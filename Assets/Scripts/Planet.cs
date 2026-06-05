@@ -8,11 +8,8 @@ public class Planet : MonoBehaviour
     [Range(2, 1024)]
     public int resolution = 128;
 
-    [Range (5, 50)]
-    public int PlatePrecisionFactor = 10;
-
-    [Range (0.1f, 10f)]
-    public float PlateToleranceDegrees = 0.3f;
+    [Range(5, 50)]
+    public int GridResolutionPerDegree = 10;
     public bool ShowPlates = false;
     public string currentDataFile = "TectonicPlates";
     // Track the previous state of the toggle for smart validation
@@ -21,7 +18,10 @@ public class Planet : MonoBehaviour
     public Texture2D OceanheightMap;
     public Texture2D TerrainheightMap;
     public Texture2D ColorMap;
-    private Dictionary<string, List<float[]>> PlateMap;
+    
+    // Core Simulation Data Structures (Replaces raw PlateMap)
+    public SimulationGrid Grid { get; private set; }
+    public GridInitializer Initializer { get; private set; }
 
     [Range(0f, 1f)]
     public float OceanElevation = 0.1f;
@@ -35,10 +35,17 @@ public class Planet : MonoBehaviour
     
     void OnValidate()
     {
+        // Allow the user to toggle plates via Inspector whether playing or not
         if (ShowPlates != PlateState)
         {
             PlateState = ShowPlates;
             TogglePlateRendering(PlateState);
+        }
+
+        if (!Application.isPlaying) 
+        {
+            Init();
+            GenerateMesh();
         }
 
         Init();
@@ -65,7 +72,20 @@ public class Planet : MonoBehaviour
         if (TerrainheightMap == null) TerrainheightMap = Resources.Load<Texture2D>("TopoHeight");
         if (ColorMap == null) ColorMap = Resources.Load<Texture2D>("ColorMap");
 
-        if(PlateMap == null) PlateMap = Mapping.Map(currentDataFile);
+        // Initialize our new Simulation Grid only once, and ONLY when playing!
+        if (Initializer == null) Initializer = new GridInitializer();
+        if (Grid == null && Application.isPlaying) 
+        {
+            long expectedCells = (360L * GridResolutionPerDegree) * (180L * GridResolutionPerDegree);
+            if (expectedCells > 20_000_000)
+            {
+                Debug.LogError($"[Planet] Aborting Grid Initialization! Requested GridResolutionPerDegree of {GridResolutionPerDegree} would create {expectedCells:N0} cells, exceeding the safe limit of 20,000,000. Please lower the resolution.");
+                return;
+            }
+
+            var rawPlateData = Mapping.Map(currentDataFile);
+            Grid = Initializer.Initialize(rawPlateData, GridResolutionPerDegree);
+        }
         if (meshFilters == null || meshFilters.Length == 0) meshFilters = new MeshFilter[6];
         terrainFaces = new TerrainFaces[6];
         UnityEngine.Vector3[] directions = { UnityEngine.Vector3.up, UnityEngine.Vector3.down, UnityEngine.Vector3.left, UnityEngine.Vector3.right, UnityEngine.Vector3.forward, UnityEngine.Vector3.back };
@@ -88,7 +108,9 @@ public class Planet : MonoBehaviour
                 meshFilters[i].sharedMesh = new Mesh();
             }
 
-            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, TerrainheightMap, ColorMap, PlateMap, PlatePrecisionFactor, PlateToleranceDegrees, OceanElevation, TopographyElevation);
+            // Pass the Grid and PlateRegistry to TerrainFaces instead of the raw PlateMap
+            // BUGFIX: We also explicitly pass OceanElevation and TopographyElevation here so that the UI sliders correctly displace the terrain mesh heightmaps.
+            terrainFaces[i] = new TerrainFaces(meshFilters[i].sharedMesh, resolution, directions[i], OceanheightMap, TerrainheightMap, ColorMap, Grid, Initializer.PlateRegistry, OceanElevation, TopographyElevation);
         }
     }
 
@@ -117,13 +139,27 @@ public class Planet : MonoBehaviour
     public void LoadGeologicalData(string filename)
     {
         currentDataFile = filename;
-        PlateMap = Mapping.Map(currentDataFile);
+        if (Initializer == null) Initializer = new GridInitializer();
+        var rawPlateData = Mapping.Map(currentDataFile);
+        
+        // Only do the heavy fill if we are playing to avoid editor freezes
+        if (Application.isPlaying) 
+        {
+            long expectedCells = (360L * GridResolutionPerDegree) * (180L * GridResolutionPerDegree);
+            if (expectedCells > 20_000_000)
+            {
+                Debug.LogError($"[Planet] Aborting Data Load! Requested GridResolutionPerDegree of {GridResolutionPerDegree} would create {expectedCells:N0} cells, exceeding the safe limit of 20,000,000. Please lower the resolution.");
+                return;
+            }
+
+            Grid = Initializer.Initialize(rawPlateData, GridResolutionPerDegree);
+        }
 
         if (terrainFaces != null)
         {
             foreach (TerrainFaces face in terrainFaces)
             {
-                if (face != null) face.UpdatePlateData(PlateMap);
+                if (face != null) face.UpdateSimulationData(Grid, Initializer.PlateRegistry);
             }
         }
     }
