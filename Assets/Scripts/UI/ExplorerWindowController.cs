@@ -115,9 +115,7 @@ public class ExplorerWindowController : MonoBehaviour
 
         BindSlider(speedSlider,      speedValueLabel,      true,  v => globeRotation.Speed = Mathf.RoundToInt(v));
         BindSlider(resolutionSlider, resolutionValueLabel, true,  v => planet.resolution = Mathf.RoundToInt(v), rebuild: true);
-        BindSlider(oceanElevSlider,  oceanElevValueLabel,  false, v => planet.OceanElevation = v,          rebuild: true);
-        BindSlider(topoElevSlider,   topoElevValueLabel,   false, v => planet.TopographyElevation = v,     rebuild: true);
-        BindSlider(precisionSlider,  precisionValueLabel,  true,  v => planet.GridResolutionPerDegree = Mathf.RoundToInt(v), rebuild: true);
+        // Note: Advanced sliders (ocean, topo, precision, tolerance) are bound in AdvancedSettingsPanelController, not here.
         BindSlider(tiltSlider,       tiltValueLabel,       false, v => globeRotation.tiltAngle = v);
 
         defaultSettingsButton?.onClick.AddListener(OnDefaultSettings);
@@ -184,15 +182,13 @@ public class ExplorerWindowController : MonoBehaviour
 
         SetSlider(speedSlider,      speedValueLabel,      defaultSpeed,     true);
         SetSlider(resolutionSlider, resolutionValueLabel, defaultResolution, true);
-        SetSlider(oceanElevSlider,  oceanElevValueLabel,  defaultOceanElev,  false);
-        SetSlider(topoElevSlider,   topoElevValueLabel,   defaultTopoElev,   false);
-        SetSlider(precisionSlider,  precisionValueLabel,  defaultPrecision,  true);
         SetSlider(tiltSlider,       tiltValueLabel,       defaultTilt,       false);
 
         // Restore planet advanced fields to their captured defaults
         planet.OceanElevation        = defaultOceanElev;
         planet.TopographyElevation   = defaultTopoElev;
-        planet.PlatePrecisionFactor  = defaultPrecision;
+        // Refactored to use GridResolutionPerDegree instead of PlatePrecisionFactor
+        planet.GridResolutionPerDegree = defaultPrecision;
         planet.PlateToleranceDegrees = defaultTolerance;
 
         // Sync the advanced-settings sliders to the restored values
