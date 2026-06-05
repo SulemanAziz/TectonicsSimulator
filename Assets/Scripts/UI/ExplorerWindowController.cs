@@ -82,8 +82,8 @@ public class ExplorerWindowController : MonoBehaviour
 
         defaultOceanElev  = planet.OceanElevation;
         defaultTopoElev   = planet.TopographyElevation;
-        defaultPrecision  = planet.PlatePrecisionFactor;
-        defaultTolerance  = planet.PlateToleranceDegrees;
+        defaultPrecision  = planet.GridResolutionPerDegree;
+        defaultTilt       = globeRotation.tiltAngle;
     }
 
     private void InitializeControlValues()
@@ -115,6 +115,9 @@ public class ExplorerWindowController : MonoBehaviour
 
         BindSlider(speedSlider,      speedValueLabel,      true,  v => globeRotation.Speed = Mathf.RoundToInt(v));
         BindSlider(resolutionSlider, resolutionValueLabel, true,  v => planet.resolution = Mathf.RoundToInt(v), rebuild: true);
+        BindSlider(oceanElevSlider,  oceanElevValueLabel,  false, v => planet.OceanElevation = v,          rebuild: true);
+        BindSlider(topoElevSlider,   topoElevValueLabel,   false, v => planet.TopographyElevation = v,     rebuild: true);
+        BindSlider(precisionSlider,  precisionValueLabel,  true,  v => planet.GridResolutionPerDegree = Mathf.RoundToInt(v), rebuild: true);
         BindSlider(tiltSlider,       tiltValueLabel,       false, v => globeRotation.tiltAngle = v);
 
         defaultSettingsButton?.onClick.AddListener(OnDefaultSettings);
@@ -172,12 +175,18 @@ public class ExplorerWindowController : MonoBehaviour
     private void OnDefaultSettings()
     {
         if (planet == null || globeRotation == null) return;
-        globeRotation.Speed     = Mathf.RoundToInt(defaultSpeed);
-        planet.resolution       = defaultResolution;
-        globeRotation.tiltAngle = defaultTilt;
+        globeRotation.Speed           = Mathf.RoundToInt(defaultSpeed);
+        planet.resolution             = defaultResolution;
+        planet.OceanElevation         = defaultOceanElev;
+        planet.TopographyElevation    = defaultTopoElev;
+        planet.GridResolutionPerDegree   = defaultPrecision;
+        globeRotation.tiltAngle       = defaultTilt;
 
-        SetSlider(speedSlider,      speedValueLabel,      defaultSpeed,      true);
+        SetSlider(speedSlider,      speedValueLabel,      defaultSpeed,     true);
         SetSlider(resolutionSlider, resolutionValueLabel, defaultResolution, true);
+        SetSlider(oceanElevSlider,  oceanElevValueLabel,  defaultOceanElev,  false);
+        SetSlider(topoElevSlider,   topoElevValueLabel,   defaultTopoElev,   false);
+        SetSlider(precisionSlider,  precisionValueLabel,  defaultPrecision,  true);
         SetSlider(tiltSlider,       tiltValueLabel,       defaultTilt,       false);
 
         // Restore planet advanced fields to their captured defaults

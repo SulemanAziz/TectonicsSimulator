@@ -14,10 +14,8 @@ public class TerrainFaces
     Texture2D OceanheightMap;
     Texture2D TerrainheightMap;
     Texture2D ColorMap;
-    public Dictionary<string, List<float[]>> PlateMap;
-    Dictionary<long, List<int>> vertexSpatialHash;
-    int PlatePrecisionFactor;
-    float PlateToleranceDegrees; 
+    public SimulationGrid Grid;
+    public Dictionary<int, TectonicPlate> PlateRegistry;
     float OceanheightMultiplier;
     float HeightMultiplier;
     Color[] baseColors;
@@ -37,7 +35,7 @@ public class TerrainFaces
         return new UnityEngine.Vector3(x,y,z);
     }
     
-    public TerrainFaces(Mesh m, int res, UnityEngine.Vector3 up, Texture2D Oceanheightmap, Texture2D TerrainheightMap = null, Texture2D ColorMap = null, Dictionary<string, List<float[]>> PlateMap = null, int PlatePrecisionFactor = 10, float PlateToleranceDegrees = 0.5f , float OceanheightMultiplier = 0f, float HeightMultiplier = 0f)
+    public TerrainFaces(Mesh m, int res, UnityEngine.Vector3 up, Texture2D Oceanheightmap, Texture2D TerrainheightMap = null, Texture2D ColorMap = null, SimulationGrid grid = null, Dictionary<int, TectonicPlate> plateRegistry = null, float OceanheightMultiplier = 0f, float HeightMultiplier = 0f)
     {
         mesh = m;
         resolution = res;
@@ -48,14 +46,12 @@ public class TerrainFaces
 
         this.OceanheightMap = Oceanheightmap;
         this.TerrainheightMap = TerrainheightMap;
-        this.PlateMap = PlateMap;
+        this.Grid = grid;
+        this.PlateRegistry = plateRegistry;
         this.ColorMap = ColorMap;
 
         this.OceanheightMultiplier = OceanheightMultiplier;
         this.HeightMultiplier = HeightMultiplier;
-
-        this.PlatePrecisionFactor = PlatePrecisionFactor;
-        this.PlateToleranceDegrees = PlateToleranceDegrees;
     }
 
     public void ConstructMesh()
@@ -63,7 +59,6 @@ public class TerrainFaces
         UnityEngine.Vector3[] vertices = new UnityEngine.Vector3[resolution * resolution];
         baseColors = new Color[resolution * resolution];
         plateColors = new Color[resolution * resolution];        
-        vertexSpatialHash = new Dictionary<long, List<int>>();
         
         int[] triangles = new int[(resolution - 1) * (resolution - 1) * 6];
         int triIndex = 0;
@@ -93,15 +88,6 @@ public class TerrainFaces
 
                     vertices[i] = pointOnUnitSphere * (Oceanradius + Terrainradius);
 
-                    int lonKey = Mathf.RoundToInt(coord.longitude * Mathf.Rad2Deg * PlatePrecisionFactor);
-                    int latKey = Mathf.RoundToInt(coord.latitude * Mathf.Rad2Deg * PlatePrecisionFactor);
-                    long key = ((long)lonKey << 32) | (uint)latKey;
-                    
-                    if (!vertexSpatialHash.ContainsKey(key)) {
-                        vertexSpatialHash[key] = new List<int>();
-                    }
-                    vertexSpatialHash[key].Add(i);
-                    
                     // Read color from the colormap
                     baseColors[i] = ColorMap.GetPixelBilinear(u,v);
                     plateColors[i] = baseColors[i];
@@ -144,9 +130,10 @@ public class TerrainFaces
         }
     }
 
-    public void UpdatePlateData(Dictionary<string, List<float[]>> newPlateMap)
+    public void UpdateSimulationData(SimulationGrid newGrid, Dictionary<int, TectonicPlate> newRegistry)
     {
-        this.PlateMap = newPlateMap;
+        this.Grid = newGrid;
+        this.PlateRegistry = newRegistry;
         RecalculatePlateColors();
     }
 
@@ -157,38 +144,27 @@ public class TerrainFaces
         // 1. Instantly copy the pristine terrain over everything to clear old plates
         System.Array.Copy(baseColors, plateColors, baseColors.Length);
 
-        // 2. Map new plates using our Spatial Dictionary mapping!
-        if (PlateMap != null && vertexSpatialHash != null)
+        // 2. Map new plates by querying the SimulationGrid!
+        // This fully replaces the old N^2 spatial hash boundary-line logic.
+        if (Grid != null && PlateRegistry != null && mesh.vertices != null)
         {
-            int neighborRange = Mathf.CeilToInt(PlateToleranceDegrees * PlatePrecisionFactor);
-
-            // ONLY iterate through actual Plate Data, completely removing N^2 mesh loop bottleneck
-            foreach (var plate in PlateMap)
+            UnityEngine.Vector3[] vertices = mesh.vertices;
+            for (int i = 0; i < vertices.Length; i++)
             {
-                foreach (float[] pt in plate.Value)
-                {
-                    int lonKey = Mathf.RoundToInt(pt[0] * PlatePrecisionFactor);
-                    int latKey = Mathf.RoundToInt(pt[1] * PlatePrecisionFactor);
+                // Normalize the vertex to get its position on a unit sphere, ignoring elevation displacement
+                UnityEngine.Vector3 pointOnUnitSphere = vertices[i].normalized;
+                
+                // Convert 3D position to Lat/Lon radians
+                var coord = GeoMaths.PointToCoordinate(pointOnUnitSphere);
+                
+                // Query our Grid in O(1) time!
+                int plateId = Grid.GetPlateIdAt(coord.latitude, coord.longitude);
 
-                    // Add simulation thickness to our mathematical line
-                    for (int dx = -neighborRange; dx <= neighborRange; dx++)
-                    {
-                        for (int dy = -neighborRange; dy <= neighborRange; dy++)
-                        {
-                            // Craft candidate hash
-                            long key = ((long)(lonKey + dx) << 32) | (uint)(latKey + dy);
-                            
-                            // Check our fast spatial cache to see if ANY physical mesh vertex exists here
-                            if (vertexSpatialHash.TryGetValue(key, out List<int> vertexIndices))
-                            {
-                                // Paint every matching vertex index yellow
-                                foreach (int idx in vertexIndices)
-                                {
-                                    plateColors[idx] = new Color32(255, 255, 0, 255);
-                                }
-                            }
-                        }
-                    }
+                // If the cell was properly assigned by GridInitializer, color it with the plate's distinct color
+                if (plateId != -1 && PlateRegistry.TryGetValue(plateId, out TectonicPlate plate))
+                {
+                    // Blend the solid plate color with the base terrain texture for a nice overlay effect
+                    plateColors[i] = Color.Lerp(baseColors[i], plate.DisplayColor, 0.7f); 
                 }
             }
         }
