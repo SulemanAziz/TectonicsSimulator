@@ -54,7 +54,7 @@ public class GridInitializer
             string plateName = plateEntry.Key;
             List<float[]> rawPolygon = plateEntry.Value;
 
-            Color plateColor = Random.ColorHSV(0f, 1f, 0.8f, 1f, 0.8f, 1f);
+            Color plateColor = Random.ColorHSV(0f, 0.5f, 0.3f, 0.5f, 0.1f, 1f,0.5f,0.5f);
             TectonicPlate newPlate = new TectonicPlate(currentId, plateName, plateColor);
             PlateRegistry.Add(currentId, newPlate);
 

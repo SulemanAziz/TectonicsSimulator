@@ -51,6 +51,8 @@ public class Planet : MonoBehaviour
         {
             Init();
             GenerateMesh();
+            PlateState = ShowPlates;
+            TogglePlateRendering(PlateState);
         }
 
         Init();
@@ -59,13 +61,6 @@ public class Planet : MonoBehaviour
 
     void Start()
     {
-        Init();
-        GenerateMesh();
-    }
-
-    public void ChangeColorTexture(Texture2D textureselection)
-    {
-        ColorMap = textureselection;
         Init();
         GenerateMesh();
     }
@@ -140,7 +135,6 @@ public class Planet : MonoBehaviour
             }
         }
     }
-
     public void LoadGeologicalData(string filename)
     {
         currentDataFile = filename;
@@ -167,5 +161,12 @@ public class Planet : MonoBehaviour
                 if (face != null) face.UpdateSimulationData(Grid, Initializer.PlateRegistry);
             }
         }
+    }
+
+    public void ChangeColorTexture(Texture2D textureselection)
+    {
+        ColorMap = textureselection;
+        Init();
+        GenerateMesh();
     }
 }
