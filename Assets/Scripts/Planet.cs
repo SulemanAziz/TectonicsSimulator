@@ -23,10 +23,7 @@ public class Planet : MonoBehaviour
     public SimulationGrid Grid { get; private set; }
     public GridInitializer Initializer { get; private set; }
 
-    // DEPRECATION / COMPATIBILITY FIX: Added back PlateToleranceDegrees to prevent compile errors in UI controllers.
-    // The new decoupled grid simulation does not use boundary-tolerance calculations.
-    [System.Obsolete("PlateToleranceDegrees is no longer used in the decoupled grid simulation.")]
-    public float PlateToleranceDegrees = 1.0f;
+
 
     [Range(0f, 1f)]
     public float OceanElevation = 0.1f;
