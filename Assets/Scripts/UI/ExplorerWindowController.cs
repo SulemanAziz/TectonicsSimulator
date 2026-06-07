@@ -8,7 +8,6 @@ public class ExplorerWindowController : MonoBehaviour
     public Planet planet;
     public GlobeRotation globeRotation;
     public Camera globeCamera;
-    public ViewportFocusManager viewportFocusManager;
     public RawImage globeViewportImage;
 
     [Header("Top Toolbar")]
@@ -35,8 +34,6 @@ public class ExplorerWindowController : MonoBehaviour
     public Button zoomInButton;
     public Button zoomOutButton;
     public Button resetButton;
-    public Button exploreGlobeButton;
-    public Button stopExploreButton;
     public Text camPositionLabel;
 
     [Header("Zoom Settings")]
@@ -121,8 +118,6 @@ public class ExplorerWindowController : MonoBehaviour
         zoomInButton?.onClick.AddListener(OnZoomIn);
         zoomOutButton?.onClick.AddListener(OnZoomOut);
         resetButton?.onClick.AddListener(OnReset);
-        exploreGlobeButton?.onClick.AddListener(() => viewportFocusManager?.OnExploreGlobeClicked());
-        stopExploreButton?.onClick.AddListener(() => viewportFocusManager?.OnStopExploreClicked());
     }
 
     private void BindSlider(Slider slider, Text label, bool wholeNumber, System.Action<float> onChanged, bool rebuild = false)
@@ -149,17 +144,9 @@ public class ExplorerWindowController : MonoBehaviour
 
     private void SetupViewportPointerEvents()
     {
-        if (globeViewportImage == null || viewportFocusManager == null) return;
+        if (globeViewportImage == null) return;
         EventTrigger trigger = globeViewportImage.gameObject.GetComponent<EventTrigger>()
                             ?? globeViewportImage.gameObject.AddComponent<EventTrigger>();
-
-        EventTrigger.Entry enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-        enter.callback.AddListener(_ => viewportFocusManager.OnPointerEnterViewport());
-        trigger.triggers.Add(enter);
-
-        EventTrigger.Entry exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
-        exit.callback.AddListener(_ => viewportFocusManager.OnPointerExitViewport());
-        trigger.triggers.Add(exit);
     }
 
     private void RebuildPlanetMesh()
