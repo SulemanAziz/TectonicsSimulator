@@ -28,7 +28,7 @@ public class FlyCamera : MonoBehaviour {
 		// Input
 		if( Focused )
 			UpdateInput();
-		else if( Input.GetMouseButtonDown( 0 ) )
+		else if( Input.GetKeyDown(KeyCode.C) )
 			Focused = true;
 
 		// Physics

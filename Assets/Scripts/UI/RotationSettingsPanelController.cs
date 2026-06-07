@@ -22,4 +22,9 @@ public class RotationController: MonoBehaviour
     {
         gameObject.SetActive(false);
     }
+
+    public void ChangeRotationSpeed(int val)
+    {
+        
+    }
 }

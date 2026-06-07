@@ -164,7 +164,7 @@ public class TerrainFaces
                 if (plateId != -1 && PlateRegistry.TryGetValue(plateId, out TectonicPlate plate))
                 {
                     // Blend the solid plate color with the base terrain texture for a nice overlay effect
-                    plateColors[i] = Color.Lerp(baseColors[i], plate.DisplayColor, 0.7f); 
+                    plateColors[i] = Color.Lerp(baseColors[i], plate.DisplayColor, 0.5f); 
                 }
             }
         }
