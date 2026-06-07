@@ -15,13 +15,11 @@ public class AdvancedSettingsPanelController : MonoBehaviour
     public Slider oceanElevSlider;
     public Slider topoElevSlider;
     public Slider precisionSlider;
-    public Slider toleranceSlider;
-
     [Header("Value Labels")]
     public Text oceanElevValueLabel;
     public Text topoElevValueLabel;
     public Text precisionValueLabel;
-    public Text toleranceValueLabel;
+
 
     [Header("Buttons")]
     public Button applyButton;
@@ -31,7 +29,7 @@ public class AdvancedSettingsPanelController : MonoBehaviour
     private float defaultOceanElev;
     private float defaultTopoElev;
     private int   defaultPrecision;
-    private float defaultTolerance;
+
 
     void Awake()
     {
@@ -42,7 +40,6 @@ public class AdvancedSettingsPanelController : MonoBehaviour
             defaultTopoElev   = planet.TopographyElevation;
             // Refactored: GridResolutionPerDegree replaces PlatePrecisionFactor
             defaultPrecision  = planet.GridResolutionPerDegree;
-            defaultTolerance  = planet.PlateToleranceDegrees;
         }
     }
 
@@ -61,7 +58,6 @@ public class AdvancedSettingsPanelController : MonoBehaviour
         BindSlider(oceanElevSlider,  oceanElevValueLabel,  false);
         BindSlider(topoElevSlider,   topoElevValueLabel,   false);
         BindSlider(precisionSlider,  precisionValueLabel,  true);
-        BindSlider(toleranceSlider,  toleranceValueLabel,  false);
 
         // Panel starts hidden
         Hide();
@@ -91,7 +87,6 @@ public class AdvancedSettingsPanelController : MonoBehaviour
         planet.TopographyElevation   = topoElevSlider   != null ? topoElevSlider.value   : defaultTopoElev;
         // Refactored: GridResolutionPerDegree replaces PlatePrecisionFactor
         planet.GridResolutionPerDegree = precisionSlider != null ? Mathf.RoundToInt(precisionSlider.value) : defaultPrecision;
-        planet.PlateToleranceDegrees = toleranceSlider  != null ? toleranceSlider.value  : defaultTolerance;
 
         planet.Init();
         planet.GenerateMesh();
@@ -104,12 +99,11 @@ public class AdvancedSettingsPanelController : MonoBehaviour
     /// to the Planet immediately. Called by ExplorerWindowController when the
     /// user clicks Default Settings.
     /// </summary>
-    public void ResetToDefaults(float ocean, float topo, int precision, float tolerance)
+    public void ResetToDefaults(float ocean, float topo, int precision)
     {
         SetSlider(oceanElevSlider,  oceanElevValueLabel,  ocean,     false);
         SetSlider(topoElevSlider,   topoElevValueLabel,   topo,      false);
         SetSlider(precisionSlider,  precisionValueLabel,  precision, true);
-        SetSlider(toleranceSlider,  toleranceValueLabel,  tolerance, false);
 
         if (planet == null) return;
 
@@ -117,7 +111,6 @@ public class AdvancedSettingsPanelController : MonoBehaviour
         planet.TopographyElevation   = topo;
         // Refactored: GridResolutionPerDegree replaces PlatePrecisionFactor
         planet.GridResolutionPerDegree = precision;
-        planet.PlateToleranceDegrees = tolerance;
     }
 
     // ── Internal helpers ────────────────────────────────────────────────────
@@ -128,7 +121,6 @@ public class AdvancedSettingsPanelController : MonoBehaviour
         SetSlider(oceanElevSlider,  oceanElevValueLabel,  planet.OceanElevation,       false);
         SetSlider(topoElevSlider,   topoElevValueLabel,   planet.TopographyElevation,  false);
         SetSlider(precisionSlider,  precisionValueLabel,  planet.GridResolutionPerDegree, true);
-        SetSlider(toleranceSlider,  toleranceValueLabel,  planet.PlateToleranceDegrees, false);
     }
 
     private void SetSlider(Slider slider, Text label, float value, bool wholeNumber)

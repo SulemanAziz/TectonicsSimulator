@@ -37,6 +37,7 @@ public class GridInitializer
 
         BuildPlateRegistry(rawPlateMap);
         FillGrid(grid);
+        ResolveUnassignedCells(grid);
         ValidateGrid(grid);
         return grid;
     }
@@ -205,6 +206,47 @@ public class GridInitializer
         else
         {
             Debug.Log("[GridInitializer Validation] SUCCESS: 100% of the planet's surface was successfully claimed by tectonic plates!");
+        }
+    }
+
+    /// <summary>
+    /// Finds any cells that remained unassigned due to mathematical boundary precision issues,
+    /// and assigns them to the plate of their nearest valid neighbor.
+    /// </summary>
+    private void ResolveUnassignedCells(SimulationGrid grid)
+    {
+        int resolvedCount = 0;
+        int[] dx = { 1, -1, 0, 0 };
+        int[] dy = { 0, 0, 1, -1 };
+
+        for (int x = 0; x < grid.Width; x++)
+        {
+            for (int y = 0; y < grid.Height; y++)
+            {
+                SimulationCell cell = grid.GetCell(x, y);
+                if (cell.PlateId == -1)
+                {
+                    // Look at neighbors to find a valid plate ID
+                    for (int i = 0; i < 4; i++)
+                    {
+                        int nx = (x + dx[i] + grid.Width) % grid.Width; // Wrap longitude
+                        int ny = Mathf.Clamp(y + dy[i], 0, grid.Height - 1); // Clamp latitude
+
+                        SimulationCell neighbor = grid.GetCell(nx, ny);
+                        if (neighbor.PlateId != -1)
+                        {
+                            cell.PlateId = neighbor.PlateId;
+                            grid.SetCell(x, y, cell);
+                            resolvedCount++;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (resolvedCount > 0)
+        {
+            Debug.Log($"[GridInitializer] Resolved {resolvedCount} unassigned boundary/precision cells by assigning them to neighboring plates.");
         }
     }
 }
