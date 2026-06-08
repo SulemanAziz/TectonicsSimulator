@@ -10,27 +10,17 @@ public class ExplorerWindowController : MonoBehaviour
     public Camera globeCamera;
     public RawImage globeViewportImage;
 
-    [Header("Top Toolbar")]
+    [Header("Rotation and Plates")]
     public Toggle rotateToggle;
     public Toggle platesToggle;
 
-    [Header("Left Panel — Sliders")]
-    public Slider speedSlider;
-    public Slider resolutionSlider;
-    public Slider tiltSlider;
-
-    [Header("Left Panel — Value Labels")]
-    public Text speedValueLabel;
-    public Text resolutionValueLabel;
-    public Text tiltValueLabel;
-
-    [Header("Left Panel — Buttons")]
-    public Button defaultSettingsButton;
-
     [Header("Advanced Settings")]
+    public Slider resolutionSlider;
+    public Text resolutionValueLabel;
+    public Button defaultSettingsButton;
     public AdvancedSettingsPanelController advancedSettingsPanel;
 
-    [Header("Bottom Bar")]
+    [Header("Camera")]
     public Button zoomInButton;
     public Button zoomOutButton;
     public Button resetButton;
@@ -41,15 +31,10 @@ public class ExplorerWindowController : MonoBehaviour
     public float minFov = 0.1f;
     public float maxFov = 90f;
 
-    private float defaultSpeed;
     private int   defaultResolution;
-    private float defaultTilt;
-
-    // Advanced settings defaults — captured once at startup before any Apply
     private float defaultOceanElev;
     private float defaultTopoElev;
     private int   defaultPrecision;
-
     private Vector3 defaultCamPosition;
     private Quaternion defaultCamRotation;
     private float defaultFov;
@@ -72,14 +57,10 @@ public class ExplorerWindowController : MonoBehaviour
     private void CaptureSimulationDefaults()
     {
         if (planet == null || globeRotation == null) return;
-        defaultSpeed      = globeRotation.Speed;
         defaultResolution = planet.resolution;
-        defaultTilt       = globeRotation.tiltAngle;
-
         defaultOceanElev  = planet.OceanElevation;
         defaultTopoElev   = planet.TopographyElevation;
         defaultPrecision  = planet.GridResolutionPerDegree;
-        defaultTilt       = globeRotation.tiltAngle;
     }
 
     private void InitializeControlValues()
@@ -88,9 +69,7 @@ public class ExplorerWindowController : MonoBehaviour
         rotateToggle?.SetIsOnWithoutNotify(globeRotation.EnableRotation);
         platesToggle?.SetIsOnWithoutNotify(planet.ShowPlates);
 
-        SetSlider(speedSlider,      speedValueLabel,      globeRotation.Speed, true);
         SetSlider(resolutionSlider, resolutionValueLabel, planet.resolution,   true);
-        SetSlider(tiltSlider,       tiltValueLabel,       globeRotation.tiltAngle, false);
     }
 
     private void SetSlider(Slider slider, Text label, float value, bool wholeNumber)
@@ -109,10 +88,8 @@ public class ExplorerWindowController : MonoBehaviour
             planet.ShowPlates = v;
         });
 
-        BindSlider(speedSlider,      speedValueLabel,      true,  v => globeRotation.Speed = Mathf.RoundToInt(v));
         BindSlider(resolutionSlider, resolutionValueLabel, true,  v => planet.resolution = Mathf.RoundToInt(v), rebuild: true);
         // Note: Advanced sliders (ocean, topo, precision, tolerance) are bound in AdvancedSettingsPanelController, not here.
-        BindSlider(tiltSlider,       tiltValueLabel,       false, v => globeRotation.tiltAngle = v);
 
         defaultSettingsButton?.onClick.AddListener(OnDefaultSettings);
         zoomInButton?.onClick.AddListener(OnZoomIn);
@@ -159,16 +136,12 @@ public class ExplorerWindowController : MonoBehaviour
     private void OnDefaultSettings()
     {
         if (planet == null || globeRotation == null) return;
-        globeRotation.Speed              = Mathf.RoundToInt(defaultSpeed);
         planet.resolution                = defaultResolution;
         planet.OceanElevation            = defaultOceanElev;
         planet.TopographyElevation       = defaultTopoElev;
         planet.GridResolutionPerDegree   = defaultPrecision;
-        globeRotation.tiltAngle          = defaultTilt;
 
-        SetSlider(speedSlider,      speedValueLabel,      defaultSpeed,     true);
         SetSlider(resolutionSlider, resolutionValueLabel, defaultResolution, true);
-        SetSlider(tiltSlider,       tiltValueLabel,       defaultTilt,       false);
 
         // Sync the advanced-settings sliders to the restored values
         advancedSettingsPanel?.ResetToDefaults(
