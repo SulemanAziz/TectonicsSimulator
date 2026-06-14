@@ -21,6 +21,12 @@ public class TerrainFaces
     Color[] baseColors;
     Color[] plateColors;
     bool platesCurrentlyShowing = true;
+    bool boundariesShowing = true;
+
+    // Boundary colors
+    static readonly Color ConvergentColor = new Color(1f,   0.15f, 0.15f); // red
+    static readonly Color DivergentColor  = new Color(0.2f, 0.5f,  1f);    // blue
+    static readonly Color TransformColor  = new Color(1f,   0.85f, 0.1f);  // yellow
 
     public static UnityEngine.Vector3 PointOnUnitCubeToPointOnUnitSphere(UnityEngine.Vector3 p)
     {
@@ -137,6 +143,12 @@ public class TerrainFaces
         RecalculatePlateColors();
     }
 
+    public void ToggleBoundaries(bool show)
+    {
+        boundariesShowing = show;
+        RecalculatePlateColors();
+    }
+
     private void RecalculatePlateColors()
     {
         if (baseColors == null || plateColors == null) return;
@@ -144,27 +156,37 @@ public class TerrainFaces
         // 1. Instantly copy the pristine terrain over everything to clear old plates
         System.Array.Copy(baseColors, plateColors, baseColors.Length);
 
-        // 2. Map new plates by querying the SimulationGrid!
-        // This fully replaces the old N^2 spatial hash boundary-line logic.
+        // 2. Map new plates and boundaries by querying the SimulationGrid
         if (Grid != null && PlateRegistry != null && mesh.vertices != null)
         {
             UnityEngine.Vector3[] vertices = mesh.vertices;
             for (int i = 0; i < vertices.Length; i++)
             {
-                // Normalize the vertex to get its position on a unit sphere, ignoring elevation displacement
                 UnityEngine.Vector3 pointOnUnitSphere = vertices[i].normalized;
-                
-                // Convert 3D position to Lat/Lon radians
                 var coord = GeoMaths.PointToCoordinate(pointOnUnitSphere);
-                
-                // Query our Grid in O(1) time!
-                int plateId = Grid.GetPlateIdAt(coord.latitude, coord.longitude);
 
-                // If the cell was properly assigned by GridInitializer, color it with the plate's distinct color
-                if (plateId != -1 && PlateRegistry.TryGetValue(plateId, out TectonicPlate plate))
+                // Convert lat/lon to grid indices to read the full SimulationCell
+                int gridX = Mathf.Clamp(Mathf.FloorToInt((coord.longitude * Mathf.Rad2Deg + 180f) * (Grid.Width  / 360f)), 0, Grid.Width  - 1);
+                int gridY = Mathf.Clamp(Mathf.FloorToInt((coord.latitude  * Mathf.Rad2Deg +  90f) * (Grid.Height / 180f)), 0, Grid.Height - 1);
+                SimulationCell cell = Grid.GetCell(gridX, gridY);
+
+                if (cell.PlateId == -1) continue;
+
+                // Boundary rendering takes priority over plate color
+                if (boundariesShowing && cell.Boundary != BoundaryType.None)
                 {
-                    // Blend the solid plate color with the base terrain texture for a nice overlay effect
-                    plateColors[i] = Color.Lerp(baseColors[i], plate.DisplayColor, 0.5f); 
+                    Color boundaryColor = cell.Boundary switch
+                    {
+                        BoundaryType.Convergent => ConvergentColor,
+                        BoundaryType.Divergent  => DivergentColor,
+                        BoundaryType.Transform  => TransformColor,
+                        _                       => baseColors[i]
+                    };
+                    plateColors[i] = boundaryColor;
+                }
+                else if (PlateRegistry.TryGetValue(cell.PlateId, out TectonicPlate plate))
+                {
+                    plateColors[i] = Color.Lerp(baseColors[i], plate.DisplayColor, 0.5f);
                 }
             }
         }
