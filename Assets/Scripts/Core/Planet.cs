@@ -45,9 +45,9 @@ public class Planet : MonoBehaviour
 
 
 
-    [Range(0f, 1f)]
+    [Range(0f, 0.2f)]
     public float OceanElevation = 0.1f;
-    [Range(0f, 1f)]
+    [Range(0f, 0.2f)]
     public float TopographyElevation = 0.15f;
 
     [SerializeField, HideInInspector]
