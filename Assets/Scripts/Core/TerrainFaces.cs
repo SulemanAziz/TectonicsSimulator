@@ -249,4 +249,20 @@ public class TerrainFaces
             mesh.colors = plateColors;
         }
     }
+
+    /// <summary>
+    /// Updates the mesh resolution for LOD. Rebuilds the mesh at the new resolution
+    /// while preserving plate overlay, boundary rendering, and elevation state.
+    /// Called by Planet.UpdateFaceResolution() via CameraCulling LOD system.
+    /// </summary>
+    public void UpdateResolution(int newResolution)
+    {
+        if (this.resolution == newResolution) return;
+        this.resolution = newResolution;
+        ConstructMesh();
+        // ConstructMesh() already calls UpdateElevationDisplacement() and RecalculatePlateColors().
+        // Restore visual toggle state so plates/boundaries don't reset.
+        TogglePlates(platesCurrentlyShowing);
+        ToggleBoundaries(boundariesShowing);
+    }
 }

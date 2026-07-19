@@ -273,6 +273,21 @@ public class Planet : MonoBehaviour
             }
         }
     }
+
+    /// <summary>
+    /// Updates the resolution of a single face mesh for LOD.
+    /// Called by CameraCulling when the camera is close enough to upgrade a face.
+    /// </summary>
+    public void UpdateFaceResolution(int faceIndex, int targetResolution)
+    {
+        if (terrainFaces != null && faceIndex >= 0 && faceIndex < terrainFaces.Length)
+        {
+            if (terrainFaces[faceIndex] != null)
+            {
+                terrainFaces[faceIndex].UpdateResolution(targetResolution);
+            }
+        }
+    }
     public void LoadGeologicalData(string filename)
     {
         currentDataFile = filename;
