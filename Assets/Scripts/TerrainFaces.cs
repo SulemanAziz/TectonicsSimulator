@@ -137,6 +137,14 @@ public class TerrainFaces
         RecalculatePlateColors();
     }
 
+    public void UpdateResolution(int newResolution)
+    {
+        if (this.resolution == newResolution) return;
+        this.resolution = newResolution;
+        ConstructMesh();
+        TogglePlates(platesCurrentlyShowing);
+    }
+
     private void RecalculatePlateColors()
     {
         if (baseColors == null || plateColors == null) return;

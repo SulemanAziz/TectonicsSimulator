@@ -134,6 +134,18 @@ public class Planet : MonoBehaviour
             }
         }
     }
+
+    public void UpdateFaceResolution(int faceIndex, int targetResolution)
+    {
+        if (terrainFaces != null && faceIndex >= 0 && faceIndex < terrainFaces.Length)
+        {
+            if (terrainFaces[faceIndex] != null)
+            {
+                terrainFaces[faceIndex].UpdateResolution(targetResolution);
+            }
+        }
+    }
+
     public void LoadGeologicalData(string filename)
     {
         currentDataFile = filename;
