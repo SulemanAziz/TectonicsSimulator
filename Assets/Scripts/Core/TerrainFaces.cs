@@ -23,6 +23,15 @@ public class TerrainFaces
     bool platesCurrentlyShowing = true;
     bool boundariesShowing = true;
 
+    // Base sphere vertices (from heightmap only, before simulation elevation).
+    // Stored so we can re-apply updated SimulationCell.Elevation every time step
+    // without re-baking the expensive heightmap texture lookups.
+    private Vector3[] _baseVertices;
+
+    // Scale factor: how much 1.0 unit of cell.Elevation displaces the mesh radially.
+    // Keep small so it overlays on top of the heightmap displacement.
+    private const float ElevationScale = 0.04f;
+
     // Boundary colors
     static readonly Color ConvergentColor = new Color(1f,   0.15f, 0.15f); // red
     static readonly Color DivergentColor  = new Color(0.2f, 0.5f,  1f);    // blue
@@ -116,13 +125,20 @@ public class TerrainFaces
         }
 
         mesh.Clear();
-        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32; //Update maximum integer representation limit to increase resolution.
+        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 
         mesh.vertices = vertices;
         mesh.triangles = triangles;
         
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
+
+        // Store base vertices (heightmap-displaced positions) for later elevation updates
+        _baseVertices = (Vector3[])vertices.Clone();
+
+        // Apply initial simulation elevation displacement (if grid is already loaded)
+        UpdateElevationDisplacement();
+
         // Calculate initial plate overlays and apply colors to mesh
         RecalculatePlateColors();
     }
@@ -140,7 +156,44 @@ public class TerrainFaces
     {
         this.Grid = newGrid;
         this.PlateRegistry = newRegistry;
+        // Re-displace vertices from the accumulated elevation then refresh colors
+        UpdateElevationDisplacement();
         RecalculatePlateColors();
+    }
+
+    /// <summary>
+    /// Offsets each mesh vertex radially by SimulationCell.Elevation on top of the
+    /// base heightmap position stored in _baseVertices.
+    /// Called every time the simulation grid is updated.
+    /// </summary>
+    private void UpdateElevationDisplacement()
+    {
+        if (_baseVertices == null || Grid == null || mesh == null) return;
+
+        Vector3[] displaced = (Vector3[])_baseVertices.Clone();
+
+        for (int i = 0; i < displaced.Length; i++)
+        {
+            Vector3 pointOnUnitSphere = _baseVertices[i].normalized;
+            var coord = GeoMaths.PointToCoordinate(pointOnUnitSphere);
+
+            int gridX = Mathf.Clamp(
+                Mathf.FloorToInt((coord.longitude * Mathf.Rad2Deg + 180f) * (Grid.Width  / 360f)),
+                0, Grid.Width  - 1);
+            int gridY = Mathf.Clamp(
+                Mathf.FloorToInt((coord.latitude  * Mathf.Rad2Deg +  90f) * (Grid.Height / 180f)),
+                0, Grid.Height - 1);
+
+            SimulationCell cell = Grid.GetCell(gridX, gridY);
+            if (cell.PlateId < 0) continue;
+
+            // Displace radially outward by scaled elevation
+            displaced[i] = _baseVertices[i] + pointOnUnitSphere * (cell.Elevation * ElevationScale);
+        }
+
+        mesh.vertices = displaced;
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
     }
 
     public void ToggleBoundaries(bool show)

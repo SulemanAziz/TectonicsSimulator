@@ -2,7 +2,6 @@ using UnityEngine;
 using System.IO;
 using System.Data;
 using System.Collections.Generic;
-using UnityEngine.Analytics;
 public class Planet : MonoBehaviour
 {
     [Range(2, 1024)]
@@ -32,8 +31,9 @@ public class Planet : MonoBehaviour
     private PlateMovementSystem    _movementSystem;
     private PlateCollisionDetector _collisionDetector;
     private ElevationSystem        _elevationSystem;
-    private SimulationGrid _baseGrid;      // snapshot at 0 Ma (never modified)
-    private float _previousTimeMa = 0f;   // track delta time between steps
+    private SimulationGrid _baseGrid;        // snapshot at 0 Ma (never modified)
+    private float _previousTimeMa = 0f;     // track delta time between steps
+    private float[,] _elevationBuffer;      // persists elevation values across time steps
 
     public Texture2D OceanheightMap;
     public Texture2D TerrainheightMap;
@@ -57,7 +57,6 @@ public class Planet : MonoBehaviour
     
     void OnValidate()
     {
-        // Allow the user to toggle plates via Inspector whether playing or not
         if (ShowPlates != PlateState)
         {
             PlateState = ShowPlates;
@@ -70,21 +69,9 @@ public class Planet : MonoBehaviour
             ToggleBoundaryRendering(BoundaryState);
         }
 
-        if (!Application.isPlaying) 
-        {
-            Init();
-            GenerateMesh();
-            PlateState = ShowPlates;
-            TogglePlateRendering(PlateState);
-        }
-
         Init();
         GenerateMesh();
-        if (ShowPlates != PlateState)
-        {
-            PlateState = ShowPlates;
-            TogglePlateRendering(PlateState);
-        }
+
         if (Mathf.Abs(CurrentTimeMa - _lastTimeMa) > 0.01f)
         {
             _lastTimeMa = CurrentTimeMa;
@@ -134,6 +121,22 @@ public class Planet : MonoBehaviour
             Grid = _movementSystem.BuildGridAtTime(_baseGrid, Initializer.PlateRegistry, timeMa);
         }
 
+        // ── ELEVATION ACCUMULATION: restore saved elevation into the fresh grid ──
+        // BuildGridAtTime returns cells with Elevation = 0. We copy the accumulated
+        // elevation from the persistent buffer so the step delta builds on history.
+        if (_elevationBuffer != null)
+        {
+            for (int ex = 0; ex < Grid.Width; ex++)
+            {
+                for (int ey = 0; ey < Grid.Height; ey++)
+                {
+                    SimulationCell ec = Grid.GetCell(ex, ey);
+                    ec.Elevation = _elevationBuffer[ex, ey];
+                    Grid.SetCell(ex, ey, ec);
+                }
+            }
+        }
+
         // Detect plate boundaries and classify collision types
         _collisionDetector?.DetectBoundaries(Grid, Initializer.PlateRegistry, timeMa);
 
@@ -142,7 +145,15 @@ public class Planet : MonoBehaviour
         _elevationSystem?.ApplyElevationStep(Grid, Initializer.PlateRegistry, deltaTimeMa);
         _previousTimeMa = timeMa;
 
-        // Repaint all 6 mesh faces
+        // ── Save updated elevations back to the persistent buffer ──
+        if (_elevationBuffer != null)
+        {
+            for (int ex = 0; ex < Grid.Width; ex++)
+                for (int ey = 0; ey < Grid.Height; ey++)
+                    _elevationBuffer[ex, ey] = Grid.GetCell(ex, ey).Elevation;
+        }
+
+        // Repaint all 6 mesh faces (colors + elevation displacement)
         if (terrainFaces != null)
         {
             foreach (TerrainFaces face in terrainFaces)
@@ -188,6 +199,13 @@ public class Planet : MonoBehaviour
                 _collisionDetector = new PlateCollisionDetector(RotationLoader);
                 _elevationSystem   = new ElevationSystem();
                 _elevationSystem.InitialiseElevations(Grid, Initializer.PlateRegistry);
+
+                // Seed the persistent elevation buffer from the just-initialised grid
+                _elevationBuffer = new float[Grid.Width, Grid.Height];
+                for (int ex = 0; ex < Grid.Width; ex++)
+                    for (int ey = 0; ey < Grid.Height; ey++)
+                        _elevationBuffer[ex, ey] = Grid.GetCell(ex, ey).Elevation;
+
                 Debug.Log("[Planet] Plate movement, collision and elevation systems ready.");
             }
 
@@ -272,6 +290,17 @@ public class Planet : MonoBehaviour
             }
 
             Grid = Initializer.Initialize(rawPlateData, GridResolutionPerDegree);
+            _baseGrid = Grid;
+
+            // Re-initialize elevation system and buffer for the new dataset
+            if (_elevationSystem != null)
+            {
+                _elevationSystem.InitialiseElevations(Grid, Initializer.PlateRegistry);
+                _elevationBuffer = new float[Grid.Width, Grid.Height];
+                for (int ex = 0; ex < Grid.Width; ex++)
+                    for (int ey = 0; ey < Grid.Height; ey++)
+                        _elevationBuffer[ex, ey] = Grid.GetCell(ex, ey).Elevation;
+            }
         }
 
         if (terrainFaces != null)
