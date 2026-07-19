@@ -49,6 +49,15 @@ public class GridInitializer
     /// CRITICAL FIX: "Unwraps" the coordinates so plates crossing the International Date Line
     /// are continuous in 2D space, and explicitly closes plates that wrap around the poles.
     /// </summary>
+    // Set of lowercase substrings identifying plates that are primarily oceanic
+    private static readonly HashSet<string> OceanicPlateSubstrings = new HashSet<string>
+    {
+        "pacific", "nazca", "cocos", "philippine", "juan de fuca", "scotia", "caribbean",
+        "caroline", "mariana", "sandwich", "tonga", "niuafo", "woodlark", "molucca",
+        "bismarck", "hebrides", "solomon", "banda", "coral", "fernandez", "easter",
+        "kermadec", "futuna", "galapagos", "oceanic"
+    };
+
     private void BuildPlateRegistry(Dictionary<string, List<float[]>> rawPlateMap)
     {
         int currentId = 0;
@@ -71,7 +80,19 @@ public class GridInitializer
             int randomcolorindex = (int) math.floor( currentId * seed  % palette.Length );
             Color32 plateColor = palette[randomcolorindex];
             
-            TectonicPlate newPlate = new TectonicPlate(currentId, plateName, plateColor);
+            // Heuristic check: is this plate oceanic?
+            float baseDensity = 1.0f; // continental
+            string lowerName = plateName.ToLower();
+            foreach (var sub in OceanicPlateSubstrings)
+            {
+                if (lowerName.Contains(sub))
+                {
+                    baseDensity = 2.9f; // oceanic crust density (g/cm3)
+                    break;
+                }
+            }
+
+            TectonicPlate newPlate = new TectonicPlate(currentId, plateName, plateColor, baseDensity);
             PlateRegistry.Add(currentId, newPlate);
 
             // 1. UNWRAP CONTINUOUS POLYGON

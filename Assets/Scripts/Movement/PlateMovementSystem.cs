@@ -28,6 +28,13 @@ public class PlateMovementSystem
         // Build rotation quaternion per plate at this time
         Dictionary<int, Quaternion> plateRotations = BuildPlateRotations(plateRegistry, timeMa);
 
+        // Pre-compute inverse rotations once to avoid computing them in parallel loop
+        Dictionary<int, Quaternion> inversePlateRotations = new Dictionary<int, Quaternion>();
+        foreach (var kvp in plateRotations)
+        {
+            inversePlateRotations[kvp.Key] = Quaternion.Inverse(kvp.Value);
+        }
+
         // New grid same resolution as base
         int resPerDegree = width / 360;
         SimulationGrid newGrid = new SimulationGrid(resPerDegree);
@@ -49,8 +56,9 @@ public class PlateMovementSystem
                 Vector3 point = LatLonToPoint(latRad, lonRad);
 
                 // Find the best matching plate by testing which plate's inverse rotation
-                // maps this point closest to a known plate region in the base grid
-                int bestPlateId = FindPlateForPoint(point, plateRotations, baseGrid);
+                // maps this point closest to a known plate region in the base grid.
+                // We pass the pre-computed inverse rotations for optimization.
+                int bestPlateId = FindPlateForPoint(point, inversePlateRotations, baseGrid);
 
                 SimulationCell cell = SimulationCell.Default();
                 cell.PlateId = bestPlateId;
@@ -64,16 +72,37 @@ public class PlateMovementSystem
     /// <summary>
     /// For a given 3D point on the sphere, applies the inverse rotation of each plate
     /// and checks if the back-rotated point falls within that plate in the base grid.
+    /// Optimised to check the plate at the current coordinates first.
     /// </summary>
-    private int FindPlateForPoint(Vector3 point, Dictionary<int, Quaternion> plateRotations, SimulationGrid baseGrid)
+    private int FindPlateForPoint(Vector3 point, Dictionary<int, Quaternion> inversePlateRotations, SimulationGrid baseGrid)
     {
-        foreach (var kvp in plateRotations)
+        // Guess the plate based on the unrotated point's location.
+        // For plate interiors, this guess will be correct and will return immediately (O(1)).
+        float fallbackLat = Mathf.Asin(Mathf.Clamp(point.y, -1f, 1f));
+        float fallbackLon = Mathf.Atan2(point.z, point.x);
+        int guessPlateId = baseGrid.GetPlateIdAt(fallbackLat, fallbackLon);
+
+        if (guessPlateId >= 0 && inversePlateRotations.TryGetValue(guessPlateId, out Quaternion invRotGuess))
+        {
+            Vector3 unrotated = invRotGuess * point;
+            float latRad = Mathf.Asin(Mathf.Clamp(unrotated.y, -1f, 1f));
+            float lonRad = Mathf.Atan2(unrotated.z, unrotated.x);
+            if (baseGrid.GetPlateIdAt(latRad, lonRad) == guessPlateId)
+            {
+                return guessPlateId;
+            }
+        }
+
+        // Fallback: If guess was wrong (near plate boundaries or high displacement), test all other plates
+        foreach (var kvp in inversePlateRotations)
         {
             int plateId = kvp.Key;
-            Quaternion rot = kvp.Value;
+            if (plateId == guessPlateId) continue;
+
+            Quaternion invRot = kvp.Value;
 
             // Inverse rotate: bring the current point back to 0 Ma reference frame
-            Vector3 unrotated = Quaternion.Inverse(rot) * point;
+            Vector3 unrotated = invRot * point;
 
             // Convert back to lat/lon
             float latRad = Mathf.Asin(Mathf.Clamp(unrotated.y, -1f, 1f));
@@ -85,10 +114,7 @@ public class PlateMovementSystem
                 return plateId;
         }
 
-        // Fallback: use the base grid directly (no rotation found)
-        float fallbackLat = Mathf.Asin(Mathf.Clamp(point.y, -1f, 1f));
-        float fallbackLon = Mathf.Atan2(point.z, point.x);
-        return baseGrid.GetPlateIdAt(fallbackLat, fallbackLon);
+        return guessPlateId >= 0 ? guessPlateId : baseGrid.GetPlateIdAt(fallbackLat, fallbackLon);
     }
 
     /// <summary>

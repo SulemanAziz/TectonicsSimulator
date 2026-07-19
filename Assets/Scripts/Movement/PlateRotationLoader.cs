@@ -59,7 +59,7 @@ public class PlateRotationLoader
         { "caribbean",       210 },
         { "cocos",           909 },
         { "philippine",      608 },
-        { "juan de fuca",    909 },
+        { "juan de fuca",    910 },
         { "scotia",          290 },
         { "arabia",          503 },
         { "somalia",         702 },
