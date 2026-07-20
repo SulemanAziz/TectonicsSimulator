@@ -19,22 +19,22 @@ public class TextureSelectionController: MonoBehaviour
         switch (texturename)
         {
             case "GravityAnomalies":
-                texturepointer = Resources.Load<Texture2D>("Bouguer_Gravity_Anomalies_WGM");
+                texturepointer = Resources.Load<Texture2D>("BaseMaps/Bouguer_Gravity_Anomalies_WGM");
                 break;  
             case "BWTopo":
-                texturepointer = Resources.Load<Texture2D>("TopoHeight");
+                texturepointer = Resources.Load<Texture2D>("BaseMaps/TopoHeight");
                 break;
             case "NASA-Color":
-                texturepointer = Resources.Load<Texture2D>("ColorMap");
+                texturepointer = Resources.Load<Texture2D>("BaseMaps/ColorMap");
                 break;
             case "OceanFloor":
-                texturepointer = Resources.Load<Texture2D>("Ocean");
+                texturepointer = Resources.Load<Texture2D>("BaseMaps/Ocean");
                 break;
             case "ScoteseCurrent":
-                texturepointer = Resources.Load<Texture2D>("Map1");
+                texturepointer = Resources.Load<Texture2D>("BaseMaps/Map1");
                 break;
             case "ScoteseTopo":
-                texturepointer = Resources.Load<Texture2D>("Topography");
+                texturepointer = Resources.Load<Texture2D>("BaseMaps/Topography");
                 break;    
         }
     }
