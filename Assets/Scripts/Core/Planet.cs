@@ -17,15 +17,24 @@ public class Planet : MonoBehaviour
     private bool BoundaryState = true;
 
     // ── TIME CONTROL ──────────────────────────────────────────────────
-    // -60 = 60 million years in the FUTURE (ML predicted)
     // 0 = present day, 560 = 560 million years ago
-    [Header("Time Control")]
-    [Range(-60f, 560f)]
+    [Header("Time Control (Historical)")]
+    [Range(0f, 560f)]
     public float CurrentTimeMa = 0f;
     private float _lastTimeMa = -1f;       // detect changes
     public bool AutoPlay = false;          // scrub forward in time automatically
     [Range(0.1f, 50f)]
     public float PlaybackSpeedMaPerSecond = 5f;
+
+    // ── FUTURE PREDICTION ────────────────────────────────────────────
+    // 0 = present day, 60 = 60 million years into the future
+    // Steps snap to the nearest available CSV: 5, 10, 15 … 60 Ma
+    // Setting this above 0 deactivates the historical slider, and vice versa.
+    [Header("Future Prediction")]
+    [Range(0f, 60f)]
+    public float FutureTimeMa = 0f;
+    private float _lastFutureTimeMa = -1f; // detect changes
+    private FuturePlateMovementSystem _futureMovementSystem;
 
     // ── MOVEMENT SYSTEM ───────────────────────────────────────────────
     public PlateRotationLoader RotationLoader { get; private set; }
@@ -73,10 +82,33 @@ public class Planet : MonoBehaviour
         Init();
         GenerateMesh();
 
-        if (Mathf.Abs(CurrentTimeMa - _lastTimeMa) > 0.01f)
+        // ── Mutual exclusion: future slider takes priority when > 0 ──
+        if (FutureTimeMa > 0.01f)
         {
-            _lastTimeMa = CurrentTimeMa;
-            ApplyTimeStep(CurrentTimeMa);
+            // Future mode: reset historical slider to present
+            if (CurrentTimeMa > 0.01f) CurrentTimeMa = 0f;
+
+            if (Mathf.Abs(FutureTimeMa - _lastFutureTimeMa) > 0.01f)
+            {
+                _lastFutureTimeMa = FutureTimeMa;
+                ApplyFutureTimeStep(FutureTimeMa);
+            }
+        }
+        else
+        {
+            // Historical mode: reset future slider to present
+            if (_lastFutureTimeMa > 0.01f)
+            {
+                _lastFutureTimeMa = 0f;
+                // Restore base grid when leaving future mode
+                if (_baseGrid != null) Grid = _baseGrid;
+            }
+
+            if (Mathf.Abs(CurrentTimeMa - _lastTimeMa) > 0.01f)
+            {
+                _lastTimeMa = CurrentTimeMa;
+                ApplyTimeStep(CurrentTimeMa);
+            }
         }
     }
 
@@ -90,7 +122,18 @@ public class Planet : MonoBehaviour
     {
         if ( !Application.isPlaying || _movementSystem == null || _baseGrid == null) return;
 
-        // Advance time automatically if AutoPlay is on
+        // ── Future slider takes priority over historical ───────────────
+        if (FutureTimeMa > 0.01f)
+        {
+            if (Mathf.Abs(FutureTimeMa - _lastFutureTimeMa) > 0.01f)
+            {
+                _lastFutureTimeMa = FutureTimeMa;
+                ApplyFutureTimeStep(FutureTimeMa);
+            }
+            return; // skip historical update
+        }
+
+        // ── Historical: advance time automatically if AutoPlay is on ──
         if (AutoPlay)
         {
             CurrentTimeMa += PlaybackSpeedMaPerSecond * Time.deltaTime;
@@ -168,6 +211,39 @@ public class Planet : MonoBehaviour
         Debug.Log($"[Planet] Updated to {timeMa:F1} Ma.");
     }
 
+    /// <summary>
+    /// Rebuilds the simulation grid using ML-predicted future plate positions
+    /// at the given time into the future (in Ma). Snaps to nearest 5-Ma CSV.
+    /// </summary>
+    public void ApplyFutureTimeStep(float futureTimeMa)
+    {
+        if (_futureMovementSystem == null || _baseGrid == null) return;
+
+        Grid = _futureMovementSystem.BuildFutureGridAtTime(_baseGrid, Initializer.PlateRegistry, futureTimeMa);
+
+        // Detect boundaries and apply a single elevation step for visualisation
+        _collisionDetector?.DetectBoundaries(Grid, Initializer.PlateRegistry, -futureTimeMa);
+        _elevationSystem?.ApplyElevationStep(Grid, Initializer.PlateRegistry, futureTimeMa);
+
+        // Repaint all 6 mesh faces
+        if (terrainFaces != null)
+        {
+            foreach (TerrainFaces face in terrainFaces)
+            {
+                if (face != null) face.UpdateSimulationData(Grid, Initializer.PlateRegistry);
+            }
+        }
+
+        int snapped = FuturePlateMovementSystem.AvailableSteps[0];
+        float bestDist = Mathf.Abs(futureTimeMa - snapped);
+        foreach (int step in FuturePlateMovementSystem.AvailableSteps)
+        {
+            float d = Mathf.Abs(futureTimeMa - step);
+            if (d < bestDist) { bestDist = d; snapped = step; }
+        }
+        Debug.Log($"[Planet] Future prediction applied: {futureTimeMa:F1} Ma → snapped to {snapped} Ma CSV.");
+    }
+
     public void Init()
     {
         // Load Resources heightmap if not already set in inspector
@@ -195,13 +271,13 @@ public class Planet : MonoBehaviour
             // Load rotation data and set up movement system
             if (RotationLoader == null)
             {
-                RotationLoader     = new PlateRotationLoader();
+                RotationLoader        = new PlateRotationLoader();
                 RotationLoader.Load();
-                RotationLoader.LoadFuturePredictions();
                 RotationLoader.LogMappingResults(Initializer.PlateRegistry);
-                _movementSystem    = new PlateMovementSystem(RotationLoader);
-                _collisionDetector = new PlateCollisionDetector(RotationLoader);
-                _elevationSystem   = new ElevationSystem();
+                _movementSystem       = new PlateMovementSystem(RotationLoader);
+                _collisionDetector    = new PlateCollisionDetector(RotationLoader);
+                _elevationSystem      = new ElevationSystem();
+                _futureMovementSystem = new FuturePlateMovementSystem();
                 _elevationSystem.InitialiseElevations(Grid, Initializer.PlateRegistry);
 
                 // Seed the persistent elevation buffer from the just-initialised grid
@@ -210,7 +286,7 @@ public class Planet : MonoBehaviour
                     for (int ey = 0; ey < Grid.Height; ey++)
                         _elevationBuffer[ex, ey] = Grid.GetCell(ex, ey).Elevation;
 
-                Debug.Log("[Planet] Plate movement, collision and elevation systems ready.");
+                Debug.Log("[Planet] Plate movement, collision, elevation, and future prediction systems ready.");
             }
 
             _lastTimeMa = 0f;
