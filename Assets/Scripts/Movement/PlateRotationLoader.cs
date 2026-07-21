@@ -25,6 +25,7 @@ public class RotationRecord
 /// <summary>
 /// Loads MerdithPlateRotations.json and organizes records by plate ID,
 /// sorted by time so we can quickly interpolate at any given Ma.
+/// Also loads ML-predicted future rotations (negative timeMa) from StreamingAssets.
 /// </summary>
 public class PlateRotationLoader
 {
@@ -141,6 +142,67 @@ public class PlateRotationLoader
         }
 
         Debug.Log($"[PlateRotationLoader] Loaded {allRecords.Count} records across {RotationsByPlate.Count} plates. Time range: {MinTimeMa} Ma to {MaxTimeMa} Ma.");
+    }
+
+    /// <summary>
+    /// Loads ML-predicted future rotations from StreamingAssets CSVs
+    /// (prediction_5Ma.csv ... prediction_60Ma.csv) and inserts them as
+    /// records with NEGATIVE timeMa (future). Call this once, after Load().
+    /// </summary>
+    public void LoadFuturePredictions()
+    {
+        if (RotationsByPlate == null)
+        {
+            Debug.LogError("[PlateRotationLoader] Call Load() before LoadFuturePredictions().");
+            return;
+        }
+
+        int filesLoaded = 0, recordsAdded = 0;
+
+        for (int ma = 5; ma <= 60; ma += 5)
+        {
+            string path = System.IO.Path.Combine(
+                Application.streamingAssetsPath, $"prediction_{ma}Ma.csv");
+
+            if (!System.IO.File.Exists(path)) continue;
+
+            string[] lines = System.IO.File.ReadAllLines(path);
+            for (int i = 1; i < lines.Length; i++)   // skip header row
+            {
+                string[] p = lines[i].Split(',');
+                if (p.Length < 5) continue;
+
+                int plateId = (int)float.Parse(p[0],
+                    System.Globalization.CultureInfo.InvariantCulture);
+
+                // Only add predictions for plates our simulator actually uses
+                if (!RotationsByPlate.ContainsKey(plateId)) continue;
+
+                RotationRecord rec = new RotationRecord
+                {
+                    movingPlateId = plateId,
+                    timeMa   = -ma,   // NEGATIVE = future
+                    poleLat  = float.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture),
+                    poleLon  = float.Parse(p[3], System.Globalization.CultureInfo.InvariantCulture),
+                    angleDeg = float.Parse(p[4], System.Globalization.CultureInfo.InvariantCulture),
+                    interpolated = true,
+                    comment = "ML prediction (XGBoost)"
+                };
+
+                RotationsByPlate[plateId].Add(rec);
+                recordsAdded++;
+            }
+            filesLoaded++;
+        }
+
+        // Re-sort every plate's records so binary search still works
+        foreach (var kvp in RotationsByPlate)
+            kvp.Value.Sort((a, b) => a.timeMa.CompareTo(b.timeMa));
+
+        if (recordsAdded > 0) MinTimeMa = -60f;
+
+        Debug.Log($"[PlateRotationLoader] Future predictions: {filesLoaded} files, " +
+                  $"{recordsAdded} records added. Time range now {MinTimeMa} to {MaxTimeMa} Ma.");
     }
 
     /// <summary>

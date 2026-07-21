@@ -17,9 +17,10 @@ public class Planet : MonoBehaviour
     private bool BoundaryState = true;
 
     // ── TIME CONTROL ──────────────────────────────────────────────────
+    // -60 = 60 million years in the FUTURE (ML predicted)
     // 0 = present day, 560 = 560 million years ago
     [Header("Time Control")]
-    [Range(0f, 560f)]
+    [Range(-60f, 560f)]
     public float CurrentTimeMa = 0f;
     private float _lastTimeMa = -1f;       // detect changes
     public bool AutoPlay = false;          // scrub forward in time automatically
@@ -106,13 +107,15 @@ public class Planet : MonoBehaviour
 
     /// <summary>
     /// Rebuilds the simulation grid at the given time and repaints the mesh.
+    /// Negative timeMa = future (ML predicted rotations from StreamingAssets CSVs).
     /// </summary>
     public void ApplyTimeStep(float timeMa)
     {
         if (_movementSystem == null || _baseGrid == null) return;
 
-        // At 0 Ma use the base grid directly (no computation needed)
-        if (timeMa <= 0.01f)
+        // At exactly 0 Ma use the base grid directly (no computation needed).
+        // NOTE: uses Abs so that negative (future) times are NOT caught here.
+        if (Mathf.Abs(timeMa) <= 0.01f)
         {
             Grid = _baseGrid;
         }
@@ -194,6 +197,7 @@ public class Planet : MonoBehaviour
             {
                 RotationLoader     = new PlateRotationLoader();
                 RotationLoader.Load();
+                RotationLoader.LoadFuturePredictions();
                 RotationLoader.LogMappingResults(Initializer.PlateRegistry);
                 _movementSystem    = new PlateMovementSystem(RotationLoader);
                 _collisionDetector = new PlateCollisionDetector(RotationLoader);
